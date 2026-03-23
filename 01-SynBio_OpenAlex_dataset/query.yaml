@@ -1,4 +1,10 @@
 # Synthetic Biology query for OpenAlex
+# Adapted from Appendix A of:
+#   Baaden, P., Bröring, S., Rennings, M., & Shapira, P. (2026).
+#   Researcher positions and the emergence of interdisciplinary scientific
+#   fields – The case of synthetic biology. Research Policy, 55(3), 105395.
+#   https://doi.org/10.1016/j.respol.2025.105395
+#
 # Split into 7 parts due to API query-length limits.
 # Each part is OR'd together conceptually — results are downloaded separately
 # then merged downstream.

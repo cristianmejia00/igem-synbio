@@ -15,12 +15,20 @@ used throughout the project.
 ### `query.yaml`
 
 A YAML file that defines the search strategy: year range (1950–2025) and
-seven query parts.  Each part is a boolean keyword expression targeting
-synthetic-biology terminology (e.g. "synthetic biology", "synthetic
-genome", "artificial cell", "biobrick").  The query is split into parts
-because of OpenAlex API query-length limits.  Every part also includes
-NOT clauses that exclude false positives related to photosynthesis, fuel
-cells, and similar terms.
+seven query parts.  The keyword expressions are adapted from **Appendix A**
+of:
+
+> Baaden, P., Bröring, S., Rennings, M., & Shapira, P. (2026).
+> Researcher positions and the emergence of interdisciplinary scientific
+> fields – The case of synthetic biology. *Research Policy*, 55(3),
+> 105395. <https://doi.org/10.1016/j.respol.2025.105395>
+
+Each part is a boolean keyword expression targeting synthetic-biology
+terminology (e.g. "synthetic biology", "synthetic genome", "artificial
+cell", "biobrick").  The query is split into parts because of OpenAlex
+API query-length limits.  Every part also includes NOT clauses that
+exclude false positives related to photosynthesis, fuel cells, and
+similar terms.
 
 ### `get_synbio_data.ipynb`
 
