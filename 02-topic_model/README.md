@@ -59,5 +59,13 @@ hyperparameter search. This is the notebook used in the associated publication.
      (higher indicates better-separated clusters).
 3. **Select best** — picks the configuration with the highest C_v
    coherence (ties broken by diversity).
-4. **Save** — stores the best models, topic tables, document assignments,
+4. **Reduce iGEM outliers** — HDBSCAN labels documents that fall outside
+   any dense cluster as topic −1 (noise).  While this is acceptable for
+   the SynBio literature (some papers may be genuinely off-topic), every
+   iGEM team project is by definition related to synthetic biology — its
+   text may simply be too short or idiosyncratic to land in a cluster.
+   BERTopic's `reduce_outliers` method (strategy `"embeddings"`,
+   threshold `0`) reassigns **all** noise documents to their nearest
+   topic based on cosine similarity, without retraining the model.
+5. **Save** — stores the best models, topic tables, document assignments,
    and the full grid-search results to `assets/topic_models/`.
