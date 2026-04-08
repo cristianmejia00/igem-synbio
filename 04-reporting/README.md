@@ -6,23 +6,17 @@ All input files are the outputs of the previous pipeline steps
 (datasets, embeddings, topic assignments, and topic names stored under
 `assets/`).  No external API access is needed.
 
-## Description
+## Notebooks
 
-The notebook **`reporting.ipynb`** brings together every artefact
-produced by the pipeline and generates publication-ready figures and
-analytical tables.
+### `cluster_summary_papers.ipynb`
 
-### Citation normalisation
+Cluster-level summaries and figures for the **papers** topic model.
 
 1. **Load and merge** — reads the papers dataset, document-level topic
    assignments, and topic names; joins them into a single table.
-2. **Yearly normalisation** — because older papers accumulate more
-   citations, three normalised metrics are computed within each
-   publication year: a z-score of raw citations, a z-score of
-   log-transformed citations, and a percentile rank.
-
-### Cluster-level summary
-
+2. **Yearly normalisation** — computes three citation-normalised metrics
+   within each publication year: z-score of raw citations, z-score of
+   log-transformed citations, and percentile rank.
 3. **Aggregate by topic** — for each topic, computes average citations,
    the three normalised impact scores, the average publication year, the
    Price Index (share of papers from the last five years), and a
@@ -32,43 +26,50 @@ analytical tables.
 5. **Impact vs Price Index scatter** — same idea but using the Price
    Index on the horizontal axis.
 
-### Joint UMAP projection
+**Output:** `assets/reports/cluster_summary.tsv`
 
-6. **Stack embeddings** — concatenates the 384-dimensional embedding
-   vectors of both corpora (papers and iGEM teams) and projects them
-   together into two dimensions with UMAP.  This ensures both datasets
-   live in the same coordinate space.
-7. **Papers scatter** — each paper is a dot, coloured by topic, sized by
+### `cluster_summary_IGEM.ipynb`
+
+Cluster-level summaries for the **iGEM teams** topic model (year-based
+normalisation; no citation metrics).
+
+1. **Load and merge** — reads the iGEM dataset, team-level topic
+   assignments, and topic names.
+2. **Aggregate by topic** — computes team counts, average year, Price
+   Index, year-rank recency, and top-country distribution per topic.
+3. **Recency scatter** — one dot per topic showing volume vs recency.
+
+**Output:** `assets/reports/cluster_summary_igem.tsv`
+
+### `reporting.ipynb`
+
+Joint visualisation and quantitative comparison of both topic models in
+a shared embedding space.
+
+1. **Joint UMAP projection** — concatenates the 384-dim embedding
+   vectors of both corpora and projects them together into 2D with UMAP,
+   so proximity between a paper and a team project is directly
+   interpretable.
+2. **Papers scatter** — each paper is a dot, coloured by topic, sized by
    citations.  Topic labels are placed at cluster centroids.
-8. **Teams scatter** — same layout for iGEM teams.
-9. **Overlay plot** — papers appear as a muted grey background and teams
+3. **Teams scatter** — same layout for iGEM teams.
+4. **Overlay plot** — papers appear as a muted grey background and teams
    in full colour, making it easy to see where the two corpora overlap.
+5. **Kernel density estimation** — estimates a smooth density surface
+   for each corpus over a 300×300 grid covering the shared UMAP space.
+6. **Log₂ density ratio** — computes the ratio of team density to paper
+   density at every grid cell.  Positive values mean iGEM teams are more
+   concentrated; negative values mean the literature dominates.
+7. **Density ratio heatmap** — renders the ratio surface with a
+   diverging colour map (blue = literature-dominated, red =
+   teams-dominated), a centred colour bar, and topic labels.
+8. **Zone classification** — classifies each topic centroid as
+   *papers-only*, *teams-dominant*, or *overlap* based on the local
+   density ratio.
+9. **Temporal precedence** — for each overlap-zone topic, uses
+   spatial-neighbour queries to compare average publication years between
+   corpora, revealing which explored a given area first.
 
-### Density ratio analysis
-
-10. **Kernel density estimation** — estimates a smooth density surface
-    for each corpus over a 300×300 grid that covers the shared UMAP
-    space.
-11. **Log₂ density ratio** — computes the ratio of team density to paper
-    density at every grid cell.  Positive values mean iGEM teams are
-    more concentrated; negative values mean the literature dominates.
-    Regions with negligible density from both corpora are masked out.
-12. **Density ratio heatmap** — renders the ratio surface with a
-    diverging colour map (blue = literature-dominated, red =
-    teams-dominated), a centred colour bar, and topic labels for both
-    corpora.
-
-### Quantitative overlap
-
-13. **Zone classification** — for each topic centroid, looks up the
-    local density ratio and classifies it as *papers-only*,
-    *teams-dominant*, or *overlap* (where the log₂ ratio is within ±1).
-14. **Temporal precedence** — for each overlap-zone topic, uses
-    spatial-neighbour queries to find the closest topics from the other
-    corpus and compares their average publication years.  This reveals
-    whether the literature or iGEM teams explored a given area first.
-15. **Export tables** — saves two TSV files to `assets/reports/`:
-    - `igem_preceded.tsv` — overlap areas where iGEM activity came
-      before the academic literature.
-    - `literature_preceded.tsv` — overlap areas where the literature
-      came first.
+**Outputs:**
+- `assets/reports/igem_preceded.tsv`
+- `assets/reports/literature_preceded.tsv`
