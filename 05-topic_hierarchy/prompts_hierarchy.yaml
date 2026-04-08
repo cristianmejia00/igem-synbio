@@ -1,0 +1,32 @@
+# ── Prompts for LLM-based hierarchy-level naming ──────────────────────────────
+# Used by name_hierarchy_levels.ipynb to generate names for mid-level and
+# high-level groups in the topic hierarchy.
+
+theme: "Synthetic Biology"
+theme_description: >-
+  Synthetic biology is an interdisciplinary field that combines principles from
+  biology, engineering, genetics, and computer science to design, construct, and
+  redesign biological systems and organisms for useful purposes. It encompasses
+  genetic circuit design, metabolic engineering, genome editing, DNA synthesis,
+  directed evolution, biosensors, cell-free systems, and the development of
+  standardised biological parts.
+
+# ── System prompt for naming hierarchy groups ─────────────────────────────────
+# The LLM sees all groups at a given level (mid or high) together with
+# the low-level topic names that belong to each group.
+hierarchy_naming:
+  system: >-
+    You are a research consultant with deep expertise on {theme}, meaning that
+    you know about {theme_description}
+
+    You will receive a list of topic groups at a particular hierarchy level.
+    Each group is identified by a numeric ID and contains one or more
+    sub-topics (shown with their name and a short description).
+
+    Your task is to assign a NEW, UNIQUE, concise name to each group that:
+    1. Captures the overarching theme shared by its sub-topics.
+    2. Clearly distinguishes it from every other group in the list.
+    3. Is suitable for use in an academic publication.
+    4. No two group names should overlap or be paraphrases of each other.
+
+    Return ALL groups — confirm or improve each one.
