@@ -115,60 +115,40 @@ def build_hierarchy_maps(
     return hier_df, maps_by_k, low_topics
 
 
-# ── High-level k selection via silhouette scoring ─────────────────────────────
+# ── Topic embedding extraction ────────────────────────────────────────────────
 
-def select_best_high_k(
+def get_topic_embeddings(
     model: BERTopic,
     low_topics: list[int],
-    maps_by_k: dict[int, dict[int, int]],
-    k_min: int,
-    k_max: int,
-) -> tuple[int, float, list[tuple[int, float]]]:
-    """Score candidate high-level k values and return the best.
+) -> tuple[list[int], np.ndarray]:
+    """Extract and align topic embeddings for non-outlier topics.
 
-    Parameters
-    ----------
-    model : BERTopic
-        Must have .topic_embeddings_ populated.
-    low_topics : list[int]
-        Non-outlier topic IDs.
-    maps_by_k : dict
-        Output of :func:`build_hierarchy_maps`.
-    k_min, k_max : int
-        Range of k values to evaluate (inclusive).
+    BERTopic may or may not include an outlier row (-1) in
+    ``topic_embeddings_``.  This helper handles all known layouts.
 
     Returns
     -------
-    best_k : int
-    best_score : float
-    all_scores : list[(k, silhouette)]
+    embed_topics : list[int]
+        Topic IDs for which embeddings are available (subset of *low_topics*).
+    X : np.ndarray, shape (len(embed_topics), embedding_dim)
     """
-    print(f"  Scoring high-level k candidates in [{k_min}, {k_max}] …")
-
     if model.topic_embeddings_ is None:
         raise ValueError("Model has no topic_embeddings_; cannot score hierarchy.")
 
-    # Map topic IDs to their embedding rows.  BERTopic stores embeddings in
-    # the order returned by get_topics() (which may or may not include -1).
-    # We handle both cases by pairing the sorted IDs with sequential rows.
     model_topics_sorted = sorted(int(t) for t in model.get_topics().keys())
     n_emb = model.topic_embeddings_.shape[0]
 
-    # If the embeddings include an extra row for the outlier topic, or if the
-    # topic list includes -1 but embeddings don't, align by the shorter list.
     if len(model_topics_sorted) == n_emb:
         topic_to_emb = {
             tid: model.topic_embeddings_[idx]
             for idx, tid in enumerate(model_topics_sorted)
         }
     elif len(model_topics_sorted) - 1 == n_emb and model_topics_sorted[0] == -1:
-        # Embeddings don't include outlier topic — skip -1
         topic_to_emb = {
             tid: model.topic_embeddings_[idx]
             for idx, tid in enumerate(model_topics_sorted[1:])
         }
     elif len(model_topics_sorted) + 1 == n_emb:
-        # Embeddings include an extra leading row for the outlier
         topic_to_emb = {
             tid: model.topic_embeddings_[idx + 1]
             for idx, tid in enumerate(model_topics_sorted)
@@ -182,6 +162,41 @@ def select_best_high_k(
 
     embed_topics = [t for t in low_topics if t in topic_to_emb]
     X = np.vstack([topic_to_emb[t] for t in embed_topics])
+    return embed_topics, X
+
+
+# ── k selection via silhouette scoring ────────────────────────────────────────
+
+def select_best_k(
+    embed_topics: list[int],
+    X: np.ndarray,
+    maps_by_k: dict[int, dict[int, int]],
+    k_min: int,
+    k_max: int,
+    label: str = "k",
+) -> tuple[int, float, list[tuple[int, float]]]:
+    """Score candidate k values by silhouette and return the best.
+
+    Parameters
+    ----------
+    embed_topics : list[int]
+        Topic IDs aligned with rows of *X*.
+    X : np.ndarray
+        Topic embedding matrix (from :func:`get_topic_embeddings`).
+    maps_by_k : dict
+        Output of :func:`build_hierarchy_maps`.
+    k_min, k_max : int
+        Range of k values to evaluate (inclusive).
+    label : str
+        Label for console messages (e.g. ``"high"`` or ``"mid"``).
+
+    Returns
+    -------
+    best_k : int
+    best_score : float
+    all_scores : list[(k, silhouette)]
+    """
+    print(f"  Scoring {label}-level k candidates in [{k_min}, {k_max}] …")
 
     scores: list[tuple[int, float]] = []
     for k in range(k_min, k_max + 1):
@@ -196,12 +211,29 @@ def select_best_high_k(
 
     if not scores:
         raise ValueError(
-            f"No valid high-level k found in [{k_min}, {k_max}]"
+            f"No valid {label}-level k found in [{k_min}, {k_max}]"
         )
 
     best_k, best_score = max(scores, key=lambda x: x[1])
-    print(f"  ✓ Selected high-level k = {best_k} (silhouette = {best_score:.4f})")
+    print(f"  ✓ Selected {label}-level k = {best_k} (silhouette = {best_score:.4f})")
     return best_k, best_score, scores
+
+
+def auto_mid_k_range(n_low_topics: int, high_k_max: int) -> tuple[int, int]:
+    """Derive the search range for the mid-level k.
+
+    Returns (k_min, k_max) where:
+    - k_min = high_k_max + 1  (ensure separation from the high level)
+    - k_max = n_low_topics // 3  (beyond this, mid ≈ low)
+    """
+    k_min = high_k_max + 1
+    k_max = n_low_topics // 3
+    if k_max < k_min:
+        raise ValueError(
+            f"Too few low-level topics ({n_low_topics}) to derive a mid range: "
+            f"k_min={k_min}, k_max={k_max}"
+        )
+    return k_min, k_max
 
 
 # ── Build hierarchy DataFrame ─────────────────────────────────────────────────

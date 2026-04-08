@@ -19,7 +19,9 @@ Reusable functions imported by both hierarchy notebooks:
 | Function | Purpose |
 |---|---|
 | `build_hierarchy_maps()` | Build the merge tree and extract cluster maps for every k |
-| `select_best_high_k()` | Score candidate high-level k values via silhouette and select the best |
+| `get_topic_embeddings()` | Extract and align topic embeddings for non-outlier topics |
+| `select_best_k()` | Score candidate k values via silhouette and select the best |
+| `auto_mid_k_range()` | Derive the search range for the mid-level k from low-topic count |
 | `build_topic_hierarchy_df()` | Create the (low, mid, high) mapping table |
 | `build_doc_map()` | Merge document-level topic assignments with the hierarchy |
 | `build_name_map()` | Merge topic names with the hierarchy |
@@ -31,8 +33,8 @@ Reusable functions imported by both hierarchy notebooks:
 
 Hierarchy for the **papers** topic model (~240 low-level topics).
 
-- **MID_K_TARGET** = 40 mid-level groups
-- **HIGH_K** selected from [4, 11] by silhouette score
+- **MID_K** auto-selected by silhouette score over [HIGH_K_MAX + 1, n // 3]
+- **HIGH_K** auto-selected from [4, 11] by silhouette score
 
 **Outputs:**
 - `assets/reports/papers_topic_hierarchy_map.tsv` — document-level mapping (ID, low, mid, high)
@@ -43,8 +45,8 @@ Hierarchy for the **papers** topic model (~240 low-level topics).
 
 Hierarchy for the **iGEM teams** topic model (161 low-level topics).
 
-- **MID_K_TARGET** = 27 (scaled proportionally from papers)
-- **HIGH_K** selected from [4, 11] by silhouette score
+- **MID_K** auto-selected by silhouette score over [HIGH_K_MAX + 1, n // 3]
+- **HIGH_K** auto-selected from [4, 11] by silhouette score
 
 **Outputs:**
 - `assets/reports/teams_topic_hierarchy_map.tsv` — document-level mapping (UT, low, mid, high)
