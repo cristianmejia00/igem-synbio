@@ -73,3 +73,54 @@ a shared embedding space.
 **Outputs:**
 - `assets/reports/igem_preceded.tsv`
 - `assets/reports/literature_preceded.tsv`
+
+#### Temporal precedence explanation: 
+
+**Flow Diagram (What Is Compared To What)**
+
+INPUT LAYERS
+- Papers (individual rows): paper_id, publication_year, x,y in joint UMAP
+- Teams (individual rows): team_id, Year_y, x,y in joint UMAP
+- Topic labels:
+  - Each paper belongs to one paper topic
+  - Each team belongs to one team topic
+
+TOPIC SUMMARY LAYER
+- Build paper topic centroids from paper points
+- Build team topic centroids from team points
+- Sample density-ratio map at each centroid
+- Classify each topic centroid as:
+  - teams-dominant
+  - papers-only
+  - overlap
+
+PRECEDENCE LAYER (THIS IS THE IMPORTANT PART)
+For each overlap paper topic:
+1. Compute centroid of that paper topic
+2. Compute radius from paper-topic spread
+3. Draw circle around that paper-topic centroid
+4. Query KD-tree made from all team points
+5. Collect all team points inside circle
+6. Pull their team years (Year_y)
+7. Compare:
+   - avg_year_papers of the paper topic
+   - avg_year_teams of nearby team points
+8. Compute delta_years = avg_year_teams - avg_year_papers
+
+OUTPUT INTERPRETATION
+- delta_years < 0: nearby teams are earlier, teams preceded literature
+- delta_years > 0: papers are earlier, literature preceded teams
+
+**Direct Answer To Your Confusion**
+Inside the circle, the code captures individual team points and their years, not team-topic centroids.
+
+So it is:
+- Anchor: one paper-topic centroid
+- Neighborhood data: many individual teams (possibly from multiple team topics)
+
+**Why this design matters**
+- It measures local practice-vs-literature timing in semantic space.
+- It avoids forcing a one-to-one paper-topic ↔ team-topic pairing.
+- It allows mixed neighborhood evidence where real teams overlap multiple thematic regions.
+
+If you want, I can also give you a second version as a one-slide visual with 4 labeled boxes (Inputs, Topic Classification, Local Neighborhood Query, Temporal Delta) formatted as presentation text.
