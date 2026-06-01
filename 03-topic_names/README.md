@@ -10,7 +10,7 @@ names and descriptions.
 You need an **OpenAI API key**. Create a plain-text file called `openai.key` in
 this folder containing only the key (no newlines or quotes). The file is
 git-ignored by default and is read directly from `03-topic_names/openai.key`
-(folder `05-topic_hierarchy` also reads it from here).
+(folder `04-topic_hierarchy` also reads it from here).
 
 The prompt templates used by the notebooks are stored in `prompts.yaml`. You can
 edit them to adjust style or domain framing without changing any code.

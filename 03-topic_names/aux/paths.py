@@ -16,7 +16,7 @@ MODELS_DIR = ASSETS_DIR / "topic_models"
 EMBEDDINGS_DIR = ASSETS_DIR / "embeddings"
 
 # Shared resources kept at the step root. ``openai.key`` deliberately stays here
-# (it is also read by 05-topic_hierarchy/name_hierarchy_levels.ipynb).
+# (it is also read by 04-topic_hierarchy/name_hierarchy_levels.ipynb).
 PROMPTS_PATH = STEP_DIR / "prompts.yaml"
 OPENAI_KEY_PATH = STEP_DIR / "openai.key"
 

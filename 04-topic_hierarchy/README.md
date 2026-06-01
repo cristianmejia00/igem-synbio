@@ -1,4 +1,4 @@
-# 05 — Topic Hierarchy
+# 04 — Topic Hierarchy
 
 Builds a three-level topic hierarchy (low → mid → high) for each corpus
 by cutting BERTopic's agglomerative merge tree at two levels, then

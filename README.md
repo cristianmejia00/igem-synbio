@@ -17,7 +17,9 @@ which community got there first.
 | `01-SynBio_OpenAlex_dataset/` | Download and merge synthetic-biology articles from OpenAlex |
 | `02-topic_model/` | Compute embeddings, fit BERTopic models, and evaluate hyperparameters |
 | `03-topic_names/` | Generate human-readable topic names with an LLM |
-| `04-reporting/` | Produce figures, tables, and overlap/precedence analysis |
+| `04-topic_hierarchy/` | Build a low → mid → high topic hierarchy and name the groups |
+| `05-reporting/` | Produce figures, tables, and overlap/precedence analysis |
+| `06-deliverables/` | Assemble the final spreadsheets and slide deck |
 | `assets/` | Intermediate and output data files (git-ignored) |
 
 Each folder has its own **README** with a detailed description of the
@@ -66,9 +68,9 @@ Latest execution environment used by the authors (cristianmejia00):
 
 5. **Run the notebooks in order**
 
-   Open each folder sequentially (`00` → `01` → `02` → `03` → `04`)
-   and execute the notebooks inside.  Each folder's README explains its
-   specific requirements and execution details.
+   Open each folder sequentially (`00` → `01` → `02` → `03` → `04` →
+   `05` → `06`) and execute the notebooks inside.  Each folder's README
+   explains its specific requirements and execution details.
 
 ## Reproducibility
 
