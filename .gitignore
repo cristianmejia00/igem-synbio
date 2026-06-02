@@ -44,3 +44,6 @@ ENV/
 # ---------- Assets ----------
 assets/
 assets_copy/
+
+# ---------- Others ----------
+07-manuscript/
