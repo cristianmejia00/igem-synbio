@@ -288,3 +288,141 @@ def plot_diverging(df_prec, out_path=None, dpi=180, stat="q1"):
     if out_path is not None:
         fig.savefig(out_path, dpi=220, bbox_inches="tight")
     return fig, ax
+
+
+def gather_year_grid(plot_df, ordered_labels, year_min=None, year_max=None):
+    """Per-topic, per-corpus yearly histograms for the pixel-grid chart.
+
+    Bins the long-form ``plot_df`` from ``gather_year_pools`` into one cell per
+    calendar year and normalises each row to its own peak year — the grid
+    analogue of the split violin's ``density_norm="width"`` scaling. Returns
+    ``(years, papers_mat, teams_mat, papers_n, teams_n)`` where the matrices are
+    ``(n_topics, n_years)`` in ``ordered_labels`` order with values in ``[0, 1]``,
+    and ``*_n`` are the per-topic record counts (for the totals panel).
+    """
+    n = len(ordered_labels)
+    if plot_df.empty or n == 0:
+        return np.array([]), np.zeros((n, 0)), np.zeros((n, 0)), np.zeros(n), np.zeros(n)
+
+    yrs = plot_df["year"].astype(float)
+    ymin = int(np.floor(yrs.min())) if year_min is None else int(year_min)
+    ymax = int(np.ceil(yrs.max())) if year_max is None else int(year_max)
+    years = np.arange(ymin, ymax + 1)
+    edges = np.arange(ymin - 0.5, ymax + 1.5, 1.0)        # integer-centred bins
+
+    pos = {lab: i for i, lab in enumerate(ordered_labels)}
+    P = np.zeros((n, len(years)))
+    T = np.zeros((n, len(years)))
+    pn = np.zeros(n)
+    tn = np.zeros(n)
+    for (lab, corpus), grp in plot_df.groupby(["topic_label", "corpus"], observed=True):
+        if lab not in pos:
+            continue
+        row = pos[lab]
+        counts, _ = np.histogram(grp["year"].astype(float).to_numpy(), bins=edges)
+        peak = counts.max()
+        norm = counts / peak if peak > 0 else counts
+        if corpus == "Papers":
+            P[row] = norm
+            pn[row] = counts.sum()
+        else:
+            T[row] = norm
+            tn[row] = counts.sum()
+    return years, P, T, pn, tn
+
+
+def plot_pixel_grid(plot_df, ordered_labels, out_path=None, dpi=180, stat="q1",
+                    show_totals=True):
+    """Option D — pixel/grid heatmap analogue of the split violins.
+
+    Each overlap topic occupies two stacked strips of year cells — **Papers**
+    (blue) on top, **Teams** (orange) below — with cell colour encoding that
+    corpus's share of records in the year, normalised to the topic's peak year
+    (so distribution *shape*, not corpus size, drives intensity — matching the
+    violin's width normalisation). A right-hand panel echoes the reference
+    figure's per-row "total records". Pass ``gather_year_pools(..., stat=stat)``
+    so the row order matches ``delta_{stat}_years``.
+    """
+    from matplotlib.cm import ScalarMappable
+    from matplotlib.colors import Normalize
+    from matplotlib.patches import Patch
+
+    years, P, T, pn, tn = gather_year_grid(plot_df, ordered_labels)
+    n = len(ordered_labels)
+    if n == 0 or years.size == 0:
+        fig, ax = plt.subplots(figsize=(6, 3), dpi=dpi)
+        ax.text(0.5, 0.5, "No overlap topics to plot", ha="center", va="center")
+        ax.axis("off")
+        return fig, ax
+
+    # Interleave the two corpora: even rows = papers, odd rows = teams.
+    n_rows = 2 * n
+    Zp = np.full((n_rows, len(years)), np.nan)
+    Zt = np.full((n_rows, len(years)), np.nan)
+    Zp[0::2] = P
+    Zt[1::2] = T
+    x_edges = np.arange(years[0] - 0.5, years[-1] + 1.5, 1.0)
+    y_edges = np.arange(n_rows + 1)
+    centers = 2 * np.arange(n) + 1.0                       # topic-group centre rows
+
+    fig_h = max(14, 0.42 * n)
+    if show_totals:
+        fig, (ax, axr) = plt.subplots(
+            1, 2, figsize=(15, fig_h), dpi=dpi, sharey=True,
+            gridspec_kw={"width_ratios": [11, 1.7], "wspace": 0.015},
+        )
+    else:
+        fig, ax = plt.subplots(figsize=(13, fig_h), dpi=dpi)
+        axr = None
+
+    norm = Normalize(0, 1)
+    ax.pcolormesh(x_edges, y_edges, np.ma.masked_invalid(Zp), cmap="Blues", norm=norm, shading="flat")
+    ax.pcolormesh(x_edges, y_edges, np.ma.masked_invalid(Zt), cmap="Oranges", norm=norm, shading="flat")
+
+    for i in range(1, n):                                  # separators between topics
+        ax.axhline(2 * i, color="white", linewidth=1.4)
+    ax.set_ylim(n_rows, 0)
+    ax.set_xlim(years[0] - 0.5, years[-1] + 0.5)
+    ax.set_yticks(centers)
+    ax.set_yticklabels(ordered_labels, fontsize=7)
+    step = 2 if len(years) > 12 else 1
+    ax.set_xticks(years[::step])
+    ax.set_xticklabels(years[::step], rotation=90, fontsize=7)
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Topic label")
+    ax.set_title(
+        "Overlap Topics: year-distribution pixel grid by corpus "
+        f"(Papers=blue / Teams=orange, sorted by delta_{stat}_years)", fontsize=13, pad=18)
+
+    # Corpus key placed just above the heatmap so it never covers data cells.
+    legend_items = [
+        Patch(facecolor="#2171b5", label="Papers"),
+        Patch(facecolor="#f16913", label="Teams"),
+    ]
+    ax.legend(handles=legend_items, loc="lower left", bbox_to_anchor=(0.0, 1.002),
+              ncol=2, frameon=False, fontsize=9)
+
+    # Two slim colourbars below the heatmap (shared with axr so alignment holds).
+    cb_axes = [ax, axr] if axr is not None else ax
+    cb_p = fig.colorbar(ScalarMappable(norm=norm, cmap="Blues"), ax=cb_axes,
+                        location="bottom", fraction=0.018, pad=0.05, aspect=45)
+    cb_p.set_label("Papers — share of topic's peak year", fontsize=8)
+    cb_p.ax.tick_params(labelsize=7)
+    cb_t = fig.colorbar(ScalarMappable(norm=norm, cmap="Oranges"), ax=cb_axes,
+                        location="bottom", fraction=0.018, pad=0.03, aspect=45)
+    cb_t.set_label("Teams — share of topic's peak year", fontsize=8)
+    cb_t.ax.tick_params(labelsize=7)
+
+    if axr is not None:
+        axr.hlines(centers, np.minimum(pn, tn), np.maximum(pn, tn), color="0.8", linewidth=1.0, zorder=1)
+        axr.scatter(pn, centers, s=16, color="#2171b5", zorder=2, label="Papers")
+        axr.scatter(tn, centers, s=16, color="#f16913", zorder=2, label="Teams")
+        axr.set_xscale("log")
+        axr.set_xlabel("Records (log)", fontsize=9)
+        axr.grid(axis="x", alpha=0.25)
+        axr.tick_params(axis="x", labelsize=7)
+        axr.legend(loc="lower right", fontsize=7)
+
+    if out_path is not None:
+        fig.savefig(out_path, dpi=220, bbox_inches="tight")
+    return fig, ax
