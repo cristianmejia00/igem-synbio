@@ -17,16 +17,32 @@ from scipy.spatial import cKDTree
 from .density import classify_zone
 from .paths import REPORTS_DIR
 
-_STATS = ("min", "q1", "mean", "median", "q3", "max")
+_STATS = ("min", "p5", "q1", "mean", "median", "q3", "max")
+
+# Human-readable label for each precedence statistic, used in chart titles/axes.
+_STAT_LABELS = {
+    "min": "earliest record",
+    "p5": "earliest 5% (P5)",
+    "q1": "first quartile (Q1)",
+    "mean": "mean",
+    "median": "median",
+    "q3": "third quartile (Q3)",
+    "max": "latest record",
+}
 
 
 def summarize_years(values, prefix):
-    """min/q1/mean/median/q3/max of a year series, prefixed in the column names."""
+    """min/p5/q1/mean/median/q3/max of a year series, prefixed in the column names.
+
+    ``p5`` is the 5th percentile — the leading edge of a corpus, used for the
+    stricter "earliest 5%" precedence comparison alongside the first quartile.
+    """
     s = pd.Series(values).dropna().astype(float)
     if s.empty:
         return {f"{prefix}_{k}_year": np.nan for k in _STATS}
     return {
         f"{prefix}_min_year": round(float(s.min()), 2),
+        f"{prefix}_p5_year": round(float(s.quantile(0.05)), 2),
         f"{prefix}_q1_year": round(float(s.quantile(0.25)), 2),
         f"{prefix}_mean_year": round(float(s.mean()), 2),
         f"{prefix}_median_year": round(float(s.median()), 2),
@@ -103,13 +119,16 @@ def save_precedence(df_prec, reports_dir=REPORTS_DIR):
     return igem, lit
 
 
-def gather_year_pools(df_prec, df_papers, df_teams, min_nearby=3, radius_mult=1.5, max_chars=60):
+def gather_year_pools(df_prec, df_papers, df_teams, min_nearby=3, radius_mult=1.5, max_chars=60,
+                      stat="q1"):
     """Long-form (topic_label, year, corpus) records for the split-violin chart.
 
     Reuses the same neighbourhood rule as ``compute_precedence`` so the violins
-    match the saved precedence stats. Returns ``(plot_df, ordered_labels)``.
+    match the saved precedence stats. Rows are ordered by ``delta_{stat}_years``
+    (``stat="q1"`` for the first quartile, ``"p5"`` for the earliest-5% view).
+    Returns ``(plot_df, ordered_labels)``.
     """
-    order = df_prec.sort_values("delta_q1_years", ascending=True).copy()
+    order = df_prec.sort_values(f"delta_{stat}_years", ascending=True).copy()
     order["topic_label"] = order["global_name"].astype(str).str.slice(0, max_chars)
 
     _df_p = df_papers[df_papers["topic"] >= 0]
@@ -140,8 +159,12 @@ def gather_year_pools(df_prec, df_papers, df_teams, min_nearby=3, radius_mult=1.
 
 
 # ── Charts ────────────────────────────────────────────────────────────────────
-def plot_violin(plot_df, ordered_labels, out_path=None, dpi=180):
-    """Option A — horizontal split violins of year distributions per overlap topic."""
+def plot_violin(plot_df, ordered_labels, out_path=None, dpi=180, stat="q1"):
+    """Option A — horizontal split violins of year distributions per overlap topic.
+
+    ``stat`` only labels the chart with the precedence criterion the rows are
+    sorted by; pass ``gather_year_pools(..., stat=stat)`` to match the ordering.
+    """
     import seaborn as sns
     fig_h = max(18, 0.34 * len(ordered_labels))
     fig, ax = plt.subplots(figsize=(14, fig_h), dpi=dpi)
@@ -150,7 +173,8 @@ def plot_violin(plot_df, ordered_labels, out_path=None, dpi=180):
         inner="quart", cut=0, bw_method=0.25, density_norm="width", linewidth=0.5,
         palette={"Papers": "#1f77b4", "Teams": "#ff7f0e"}, ax=ax,
     )
-    ax.set_title("Overlap Topics: Year Distributions by Corpus (sorted by delta_q1_years)", fontsize=14)
+    ax.set_title(f"Overlap Topics: Year Distributions by Corpus (sorted by delta_{stat}_years)",
+                 fontsize=14)
     ax.set_xlabel("Year")
     ax.set_ylabel("Topic label")
     ax.tick_params(axis="y", labelsize=7)
@@ -162,9 +186,14 @@ def plot_violin(plot_df, ordered_labels, out_path=None, dpi=180):
     return fig, ax
 
 
-def plot_dumbbell(df_prec, out_path=None, dpi=180):
-    """Option B — papers vs teams median years with IQR bands, per overlap topic."""
-    db = df_prec.sort_values("delta_q1_years", ascending=True).copy()
+def plot_dumbbell(df_prec, out_path=None, dpi=180, stat="q1"):
+    """Option B — papers vs teams median years with IQR bands, per overlap topic.
+
+    The markers/bands always summarise the full distribution (median + Q1-Q3);
+    ``stat`` selects the precedence criterion the rows are ordered by
+    (``"q1"`` first quartile, ``"p5"`` earliest 5%).
+    """
+    db = df_prec.sort_values(f"delta_{stat}_years", ascending=True).copy()
     db["topic_label"] = db["global_name"].astype(str).str.slice(0, 60)
     y = np.arange(len(db))
 
@@ -182,7 +211,8 @@ def plot_dumbbell(df_prec, out_path=None, dpi=180):
     ax.invert_yaxis()
     ax.set_xlabel("Year")
     ax.set_ylabel("Topic label")
-    ax.set_title("Overlap Topics: Papers vs Teams Year Dumbbell (sorted by delta_q1_years)", fontsize=14)
+    ax.set_title(f"Overlap Topics: Papers vs Teams Year Dumbbell (sorted by delta_{stat}_years)",
+                 fontsize=14)
     ax.grid(axis="x", alpha=0.25)
     legend_items = [
         Line2D([0], [0], color="#1f77b4", lw=2.2, label="Papers IQR (Q1-Q3)"),
@@ -197,9 +227,16 @@ def plot_dumbbell(df_prec, out_path=None, dpi=180):
     return fig, ax
 
 
-def plot_diverging(df_prec, out_path=None, dpi=180):
-    """Option C — diverging precedence gap (delta_q1_years) centred at zero."""
-    dg = df_prec.sort_values("delta_q1_years", ascending=True).copy()
+def plot_diverging(df_prec, out_path=None, dpi=180, stat="q1"):
+    """Option C — diverging precedence gap centred at zero.
+
+    The highlighted dot/line is ``delta_{stat}_years`` (``"q1"`` first quartile,
+    ``"p5"`` the stricter earliest-5% leading edge); the grey band always spans
+    the delta IQR (delta_q1 to delta_q3) as a spread/robustness reference.
+    """
+    delta_col = f"delta_{stat}_years"
+    stat_label = _STAT_LABELS.get(stat, stat)
+    dg = df_prec.sort_values(delta_col, ascending=True).copy()
     dg["topic_label"] = dg["global_name"].astype(str).str.slice(0, 60)
 
     dg["support"] = np.minimum(dg["n_papers"], dg["n_nearby_teams"])
@@ -213,7 +250,7 @@ def plot_diverging(df_prec, out_path=None, dpi=180):
             return "#2166ac"
         return "#7f7f7f"
 
-    dg["gap_color"] = dg["delta_q1_years"].apply(_gap_color)
+    dg["gap_color"] = dg[delta_col].apply(_gap_color)
     y = np.arange(len(dg))
 
     fig_h = max(14, 0.30 * len(dg))
@@ -222,25 +259,26 @@ def plot_diverging(df_prec, out_path=None, dpi=180):
     ax.grid(axis="x", alpha=0.20, zorder=0)
     ax.hlines(y=y, xmin=dg["delta_q1_years"], xmax=dg["delta_q3_years"], color="0.75",
               linewidth=1.6, alpha=0.9, zorder=2)
-    for yi, val, col in zip(y, dg["delta_q1_years"], dg["gap_color"]):
+    for yi, val, col in zip(y, dg[delta_col], dg["gap_color"]):
         ax.plot([0, val], [yi, yi], color=col, linewidth=1.8, alpha=0.85, zorder=3)
-    ax.scatter(dg["delta_q1_years"], y, s=dg["marker_size"], c=dg["gap_color"],
+    ax.scatter(dg[delta_col], y, s=dg["marker_size"], c=dg["gap_color"],
                edgecolor="white", linewidth=0.5, alpha=0.95, zorder=4)
 
     ax.set_yticks(y)
     ax.set_yticklabels(dg["topic_label"], fontsize=7)
     ax.invert_yaxis()
-    ax.set_xlabel("Precedence gap in years (teams - papers) using Q1; negative means teams preceded")
+    ax.set_xlabel(f"Precedence gap in years (teams - papers) using {stat_label}; "
+                  "negative means teams preceded")
     ax.set_ylabel("Topic label")
-    ax.set_title("Diverging precedence gap by topic (sorted by delta_q1_years)", fontsize=14)
+    ax.set_title(f"Diverging precedence gap by topic (sorted by {delta_col})", fontsize=14)
 
     xmin, xmax = ax.get_xlim()
     span = xmax - xmin
     ax.text(xmin + 0.02 * span, -1.8, "Teams preceded", color="#b2182b", fontsize=10, ha="left", va="bottom")
     ax.text(xmax - 0.02 * span, -1.8, "Papers preceded", color="#2166ac", fontsize=10, ha="right", va="bottom")
     legend_items = [
-        Line2D([0], [0], marker="o", color="w", markerfacecolor="#b2182b", markersize=7, label="Teams preceded (delta_q1 < 0)"),
-        Line2D([0], [0], marker="o", color="w", markerfacecolor="#2166ac", markersize=7, label="Papers preceded (delta_q1 > 0)"),
+        Line2D([0], [0], marker="o", color="w", markerfacecolor="#b2182b", markersize=7, label=f"Teams preceded ({delta_col} < 0)"),
+        Line2D([0], [0], marker="o", color="w", markerfacecolor="#2166ac", markersize=7, label=f"Papers preceded ({delta_col} > 0)"),
         Line2D([0], [0], marker="o", color="w", markerfacecolor="#7f7f7f", markersize=7, label="Near balance"),
         Line2D([0], [0], color="0.75", lw=1.6, label="Delta IQR (Q1 to Q3)"),
         Line2D([0], [0], color="black", lw=1.2, linestyle="--", label="Zero gap"),

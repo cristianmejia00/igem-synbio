@@ -73,10 +73,13 @@ overlap-zone topics. **Outputs:**
 ### `precedence_charts.ipynb`
 
 Three views of the overlap-topic precedence (loaded from
-`overlap_precedence_full.tsv`), sorted by `delta_q1_years`: split violins of year
-distributions (A), a median-year dumbbell with IQR bands (B), and a diverging
-precedence-gap plot centred at zero (C). **Outputs:**
-`assets/reports/overlap_precedence_{violin_horizontal,dumbbell_horizontal,diverging_gap}.png`.
+`overlap_precedence_full.tsv`): split violins of year distributions (A), a
+median-year dumbbell with IQR bands (B), and a diverging precedence-gap plot
+centred at zero (C). Each view is produced for **two precedence criteria** — the
+first quartile (`delta_q1_years`) and the stricter earliest 5% (`delta_p5_years`,
+the leading edge of each corpus). **Outputs:**
+`assets/reports/overlap_precedence_{violin_horizontal,dumbbell_horizontal,diverging_gap}.png`
+(first quartile) and the matching `…_p5.png` files (earliest 5%).
 
 ### Shared module — `aux/`
 

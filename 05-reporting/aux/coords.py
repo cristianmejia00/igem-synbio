@@ -33,14 +33,56 @@ LEVELS = {
 
 
 # ── 1. Compute / persist / load the joint projection ──────────────────────────
-def compute_joint_umap(papers_emb, teams_emb, seed=SEED, n_neighbors=15, min_dist=0.1):
-    """Fit one 2D UMAP on the stacked corpora; return (papers_xy, teams_xy)."""
+def squash_radial_outliers(xy, keep_pct=99.0, max_radius_factor=1.15):
+    """Pull a few stray points back to the cloud's edge so they stop inflating
+    the canvas.
+
+    UMAP occasionally strands a handful of weakly-connected points (or a tiny
+    micro-cluster) far from the main mass. Axis limits are driven by the
+    extremes, so those few dots leave wide empty margins in every figure. We
+    leave the core untouched and compress only the radial tail: measuring each
+    point's distance from the cloud's median centre, anything past the
+    ``keep_pct`` percentile radius ``r0`` is remapped through a saturating
+    ``tanh`` so its distance lands in ``(r0, r0 * max_radius_factor)``.
+
+    The map is continuous at ``r0`` with unit slope (core-edge points barely
+    move), monotonic, and angle-preserving — a cluster keeps its direction from
+    the centre, so peripheral labels and leader lines still point the right way
+    and topic centroids move with their points (names are matched by id, never
+    by coordinates, so nothing downstream is mismatched).
+    """
+    xy = np.asarray(xy, dtype=float)
+    center = np.median(xy, axis=0)
+    offset = xy - center
+    r = np.hypot(offset[:, 0], offset[:, 1])
+    r0 = np.percentile(r, keep_pct)
+    span = r0 * (max_radius_factor - 1.0)        # room the tail may use past r0
+    tail = r > r0
+    if span <= 0 or not tail.any():
+        return xy
+    r_new = r.copy()
+    r_new[tail] = r0 + span * np.tanh((r[tail] - r0) / span)
+    scale = np.divide(r_new, r, out=np.ones_like(r), where=r > 0)
+    return center + offset * scale[:, None]
+
+
+def compute_joint_umap(papers_emb, teams_emb, seed=SEED, n_neighbors=15, min_dist=0.1,
+                       squash=True):
+    """Fit one 2D UMAP on the stacked corpora; return (papers_xy, teams_xy).
+
+    With ``squash`` (default) the radial tail is pulled back to the cloud's
+    periphery before the corpora are split (see ``squash_radial_outliers``), so
+    the saved coordinates use the canvas efficiently. Both corpora share the one
+    transform, so a paper and a team that landed together stay together.
+    """
     all_emb = np.vstack([papers_emb, teams_emb])
     umap_2d = UMAP(
         n_components=2, n_neighbors=n_neighbors, min_dist=min_dist,
         metric="cosine", random_state=seed,
     )
     all_xy = umap_2d.fit_transform(all_emb)
+    if squash:
+        all_xy = squash_radial_outliers(all_xy)
     return all_xy[:len(papers_emb)], all_xy[len(papers_emb):]
 
 
