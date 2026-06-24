@@ -332,7 +332,7 @@ def gather_year_grid(plot_df, ordered_labels, year_min=None, year_max=None):
 
 
 def plot_pixel_grid(plot_df, ordered_labels, out_path=None, dpi=180, stat="q1",
-                    show_totals=True):
+                    show_totals=True, cell_size=0.11):
     """Option D — pixel/grid heatmap analogue of the split violins.
 
     Each overlap topic occupies two stacked strips of year cells — **Papers**
@@ -342,10 +342,15 @@ def plot_pixel_grid(plot_df, ordered_labels, out_path=None, dpi=180, stat="q1",
     violin's width normalisation). A right-hand panel echoes the reference
     figure's per-row "total records". Pass ``gather_year_pools(..., stat=stat)``
     so the row order matches ``delta_{stat}_years``.
+
+    Cells are drawn **square** (``ax.set_aspect("equal")``): with one column per
+    year and two rows per topic the grid is a tall, narrow strip ``cell_size``
+    inches per pixel. The totals panel and colourbars are attached with
+    ``make_axes_locatable`` so they stay locked to the equal-aspect heatmap.
     """
     from matplotlib.cm import ScalarMappable
     from matplotlib.colors import Normalize
-    from matplotlib.patches import Patch
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
 
     years, P, T, pn, tn = gather_year_grid(plot_df, ordered_labels)
     n = len(ordered_labels)
@@ -365,22 +370,22 @@ def plot_pixel_grid(plot_df, ordered_labels, out_path=None, dpi=180, stat="q1",
     y_edges = np.arange(n_rows + 1)
     centers = 2 * np.arange(n) + 1.0                       # topic-group centre rows
 
-    fig_h = max(14, 0.42 * n)
-    if show_totals:
-        fig, (ax, axr) = plt.subplots(
-            1, 2, figsize=(15, fig_h), dpi=dpi, sharey=True,
-            gridspec_kw={"width_ratios": [11, 1.7], "wspace": 0.015},
-        )
-    else:
-        fig, ax = plt.subplots(figsize=(13, fig_h), dpi=dpi)
-        axr = None
+    # Size the canvas from the square-cell footprint plus margins for the long
+    # topic labels, totals panel and colourbars; set_aspect("equal") then keeps
+    # every cell square regardless of the exact figure size.
+    heat_w = len(years) * cell_size
+    heat_h = n_rows * cell_size
+    fig_w = heat_w + 4.8 + (1.6 if show_totals else 0.0)
+    fig_h = heat_h + 2.4
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
 
     norm = Normalize(0, 1)
     ax.pcolormesh(x_edges, y_edges, np.ma.masked_invalid(Zp), cmap="Blues", norm=norm, shading="flat")
     ax.pcolormesh(x_edges, y_edges, np.ma.masked_invalid(Zt), cmap="Oranges", norm=norm, shading="flat")
+    ax.set_aspect("equal")                                 # square pixels
 
     for i in range(1, n):                                  # separators between topics
-        ax.axhline(2 * i, color="white", linewidth=1.4)
+        ax.axhline(2 * i, color="white", linewidth=0.8)
     ax.set_ylim(n_rows, 0)
     ax.set_xlim(years[0] - 0.5, years[-1] + 0.5)
     ax.set_yticks(centers)
@@ -388,40 +393,36 @@ def plot_pixel_grid(plot_df, ordered_labels, out_path=None, dpi=180, stat="q1",
     step = 2 if len(years) > 12 else 1
     ax.set_xticks(years[::step])
     ax.set_xticklabels(years[::step], rotation=90, fontsize=7)
-    ax.set_xlabel("Year")
     ax.set_ylabel("Topic label")
     ax.set_title(
-        "Overlap Topics: year-distribution pixel grid by corpus "
-        f"(Papers=blue / Teams=orange, sorted by delta_{stat}_years)", fontsize=13, pad=18)
+        f"Year-distribution pixel grid\nPapers (blue) vs Teams (orange) — sorted by delta_{stat}_years",
+        fontsize=11, pad=10)
 
-    # Corpus key placed just above the heatmap so it never covers data cells.
-    legend_items = [
-        Patch(facecolor="#2171b5", label="Papers"),
-        Patch(facecolor="#f16913", label="Teams"),
-    ]
-    ax.legend(handles=legend_items, loc="lower left", bbox_to_anchor=(0.0, 1.002),
-              ncol=2, frameon=False, fontsize=9)
+    # Attach side/below axes to the equal-aspect heatmap so they track its box.
+    divider = make_axes_locatable(ax)
 
-    # Two slim colourbars below the heatmap (shared with axr so alignment holds).
-    cb_axes = [ax, axr] if axr is not None else ax
-    cb_p = fig.colorbar(ScalarMappable(norm=norm, cmap="Blues"), ax=cb_axes,
-                        location="bottom", fraction=0.018, pad=0.05, aspect=45)
-    cb_p.set_label("Papers — share of topic's peak year", fontsize=8)
-    cb_p.ax.tick_params(labelsize=7)
-    cb_t = fig.colorbar(ScalarMappable(norm=norm, cmap="Oranges"), ax=cb_axes,
-                        location="bottom", fraction=0.018, pad=0.03, aspect=45)
-    cb_t.set_label("Teams — share of topic's peak year", fontsize=8)
-    cb_t.ax.tick_params(labelsize=7)
-
-    if axr is not None:
+    if show_totals:
+        axr = divider.append_axes("right", 1.3, pad=0.12, sharey=ax)
         axr.hlines(centers, np.minimum(pn, tn), np.maximum(pn, tn), color="0.8", linewidth=1.0, zorder=1)
-        axr.scatter(pn, centers, s=16, color="#2171b5", zorder=2, label="Papers")
-        axr.scatter(tn, centers, s=16, color="#f16913", zorder=2, label="Teams")
+        axr.scatter(pn, centers, s=14, color="#2171b5", zorder=2, label="Papers")
+        axr.scatter(tn, centers, s=14, color="#f16913", zorder=2, label="Teams")
         axr.set_xscale("log")
-        axr.set_xlabel("Records (log)", fontsize=9)
+        axr.set_xlabel("Records (log)", fontsize=8)
         axr.grid(axis="x", alpha=0.25)
         axr.tick_params(axis="x", labelsize=7)
+        plt.setp(axr.get_yticklabels(), visible=False)
         axr.legend(loc="lower right", fontsize=7)
+
+    # Two slim horizontal colourbars stacked under the heatmap (pad clears the
+    # rotated year labels).
+    cax_p = divider.append_axes("bottom", 0.12, pad=0.6)
+    cb_p = fig.colorbar(ScalarMappable(norm=norm, cmap="Blues"), cax=cax_p, orientation="horizontal")
+    cb_p.set_label("Papers — share of topic's peak year", fontsize=8)
+    cb_p.ax.tick_params(labelsize=7)
+    cax_t = divider.append_axes("bottom", 0.12, pad=0.5)
+    cb_t = fig.colorbar(ScalarMappable(norm=norm, cmap="Oranges"), cax=cax_t, orientation="horizontal")
+    cb_t.set_label("Teams — share of topic's peak year", fontsize=8)
+    cb_t.ax.tick_params(labelsize=7)
 
     if out_path is not None:
         fig.savefig(out_path, dpi=220, bbox_inches="tight")
