@@ -17,7 +17,7 @@ dataset for downstream analysis.
 
 1. **Load raw data** — reads the two TSV files containing team metadata
    and project descriptions.
-2. **Filter** — keeps only teams whose participation status is
+2. **Filter** — keeps only non-highschool teams whose participation status is
    *accepted*.
 3. **Merge** — joins metadata and project descriptions on the team
    identifier.
