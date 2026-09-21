@@ -9,7 +9,7 @@ import pandas as pd
 import yaml
 from openai import OpenAI
 
-from .paths import MODELS_DIR, OPENAI_KEY_PATH, OPENAI_MODEL, PROMPTS_PATH, REPORTS_DIR
+from .paths import OPENAI_KEY_PATH, OPENAI_MODEL, PROMPTS_PATH
 
 
 def load_prompts(path=PROMPTS_PATH) -> dict:
@@ -125,13 +125,13 @@ def name_hierarchy_level(hierarchy_df, topic_names, level_col, label, client,
     return mapping
 
 
-def load_naming_inputs(prefix, models_dir=MODELS_DIR, reports_dir=REPORTS_DIR):
-    """Load the low-level topic names and the hierarchy table for one corpus."""
-    topic_names = pd.read_csv(models_dir / f"{prefix}_topic_names.txt", sep="\t").rename(columns={"topic": "low"})
-    hierarchy = pd.read_csv(reports_dir / f"{prefix}_topic_name_hierarchy.tsv", sep="\t")
+def load_naming_inputs(run, prefix):
+    """Load the low-level topic names (03) and the hierarchy table (04) for one corpus."""
+    topic_names = pd.read_csv(run.get("03", f"{prefix}_topic_names.txt"), sep="\t").rename(columns={"topic": "low"})
+    hierarchy = pd.read_csv(run.get("04", f"{prefix}_topic_name_hierarchy.tsv"), sep="\t")
     return topic_names, hierarchy
 
 
-def save_named_hierarchy(hierarchy, prefix, reports_dir=REPORTS_DIR):
+def save_named_hierarchy(run, hierarchy, prefix):
     """Overwrite the hierarchy table with the added mid_name / high_name columns."""
-    hierarchy.to_csv(reports_dir / f"{prefix}_topic_name_hierarchy.tsv", sep="\t", index=False)
+    hierarchy.to_csv(run.out(f"{prefix}_topic_name_hierarchy.tsv"), sep="\t", index=False)

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 
-from .paths import EMBEDDING_MODEL, EMBEDDINGS_DIR
+from .paths import EMBEDDING_MODEL
 
 
 def prepare_text(df: pd.DataFrame, title_col: str, abstract_col: str) -> pd.DataFrame:
@@ -35,16 +35,13 @@ def encode_texts(
 
 
 def save_embeddings(
+    run,
     embeddings: np.ndarray,
     corpus: pd.DataFrame,
     id_col: str,
     embeddings_file: str,
     corpus_file: str,
-    embeddings_dir=EMBEDDINGS_DIR,
 ) -> None:
-    """Save the embedding matrix (``.npy``) and the aligned ``id + text`` corpus."""
-    embeddings_dir.mkdir(parents=True, exist_ok=True)
-    np.save(embeddings_dir / embeddings_file, embeddings)
-    corpus[[id_col, "text"]].to_csv(
-        embeddings_dir / corpus_file, sep="\t", index=False
-    )
+    """Save the embedding matrix (``.npy``) and the aligned ``id + text`` corpus to the run folder."""
+    np.save(run.out(embeddings_file), embeddings)
+    corpus[[id_col, "text"]].to_csv(run.out(corpus_file), sep="\t", index=False)

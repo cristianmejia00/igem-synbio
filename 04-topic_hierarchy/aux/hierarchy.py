@@ -13,9 +13,7 @@ import pandas as pd
 from bertopic import BERTopic
 from sklearn.metrics import silhouette_score
 
-from .paths import (
-    ASSETS_DIR, EMBEDDINGS_DIR, HIGH_K_MAX, HIGH_K_MIN, MODELS_DIR, REPORTS_DIR,
-)
+from .paths import HIGH_K_MAX, HIGH_K_MIN
 
 
 # ── Hierarchy construction ────────────────────────────────────────────────────
@@ -243,19 +241,21 @@ def build_summary(
 
 
 # ── High-level orchestration (consolidates the per-corpus boilerplate) ────────
-def load_hierarchy_inputs(prefix, id_col, year_col, raw_filename, rename_id_from=None,
-                          models_dir=MODELS_DIR, embeddings_dir=EMBEDDINGS_DIR, assets_dir=ASSETS_DIR):
+def load_hierarchy_inputs(run, prefix, id_col, year_col, raw_key, rename_id_from=None):
     """Load the model + datasets for one corpus with normalised key columns.
+
+    ``raw_key`` is the dataset as ``"<stage>/<file>"`` (e.g. ``"00/igem.txt"``);
+    the model, doc topics and corpus come from stage 02, the names from stage 03.
 
     Returns ``(model, doc_topics, topic_names, corpus, raw)`` where ``doc_topics``
     and ``topic_names`` use ``low`` as the topic column and ``id_col`` as the
     document id (``rename_id_from`` renames the source id column when needed).
     """
-    model = BERTopic.load(str(models_dir / f"{prefix}_topic_model"))
-    doc_topics = pd.read_csv(models_dir / f"{prefix}_doc_topics.txt", sep="\t")
-    topic_names = pd.read_csv(models_dir / f"{prefix}_topic_names.txt", sep="\t")
-    corpus = pd.read_csv(embeddings_dir / f"{prefix}_corpus.txt", sep="\t")
-    raw = pd.read_csv(assets_dir / raw_filename, sep="\t")
+    model = BERTopic.load(str(run.get("02", f"{prefix}_topic_model")))
+    doc_topics = pd.read_csv(run.get("02", f"{prefix}_doc_topics.txt"), sep="\t")
+    topic_names = pd.read_csv(run.get("03", f"{prefix}_topic_names.txt"), sep="\t")
+    corpus = pd.read_csv(run.get("02", f"{prefix}_corpus.txt"), sep="\t")
+    raw = pd.read_csv(run.get(raw_key), sep="\t")
 
     doc_rename = {"topic": "low"}
     if rename_id_from:
@@ -302,21 +302,20 @@ def select_hierarchy_levels(model, corpus_texts, high_k_min=HIGH_K_MIN, high_k_m
     return hierarchy_map, sel
 
 
-def write_hierarchy_reports(doc_topics, topic_names, raw, hierarchy_map, id_col, year_col,
-                            prefix, reports_dir=REPORTS_DIR):
+def write_hierarchy_reports(run, doc_topics, topic_names, raw, hierarchy_map, id_col, year_col,
+                            prefix):
     """Build and persist the three hierarchy report tables for one corpus.
 
-    Returns ``(doc_map, name_map, summary)``. Files written to ``reports_dir``:
+    Returns ``(doc_map, name_map, summary)``. Files written to the run folder:
     ``<prefix>_topic_hierarchy_map.tsv``, ``<prefix>_topic_name_hierarchy.tsv``,
     ``<prefix>_topic_hierarchy_summary.tsv``.
     """
-    reports_dir.mkdir(parents=True, exist_ok=True)
     doc_map = build_doc_map(doc_topics, hierarchy_map, id_col=id_col)
-    doc_map.to_csv(reports_dir / f"{prefix}_topic_hierarchy_map.tsv", sep="\t", index=False)
+    doc_map.to_csv(run.out(f"{prefix}_topic_hierarchy_map.tsv"), sep="\t", index=False)
 
     name_map = build_name_map(topic_names, hierarchy_map)
-    name_map.to_csv(reports_dir / f"{prefix}_topic_name_hierarchy.tsv", sep="\t", index=False)
+    name_map.to_csv(run.out(f"{prefix}_topic_name_hierarchy.tsv"), sep="\t", index=False)
 
     summary = build_summary(doc_map, raw, id_col=id_col, year_col=year_col)
-    summary.to_csv(reports_dir / f"{prefix}_topic_hierarchy_summary.tsv", sep="\t", index=False)
+    summary.to_csv(run.out(f"{prefix}_topic_hierarchy_summary.tsv"), sep="\t", index=False)
     return doc_map, name_map, summary

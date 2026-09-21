@@ -42,13 +42,14 @@ location, reproduces the repo's established density-ratio construct
 Country attribution follows `geography_lq.py`: one count per team-country, so a
 multi-country team contributes to each of its countries.
 
-Inputs : assets/reports/joint_umap_{papers,teams}_xy.tsv, assets/igem.txt,
-         assets/synbio_openalex.txt, assets/reports/geography_location_quotient.tsv
-Outputs: assets/reports/geography_outsiderness_teams.tsv
-         assets/reports/geography_outsiderness_trajectory.tsv
-         assets/reports/geography_outsiderness_trajectory.png
-         assets/reports/geography_outsiderness_field_check.png
+Inputs : assets/<date>/05/joint_umap_{papers,teams}_xy.tsv, assets/<date>/00/igem.txt,
+         assets/<date>/01/synbio_openalex.txt, assets/<date>/05/geography_location_quotient.tsv
+Outputs: assets/<date>/05/geography_outsiderness_teams.tsv
+         assets/<date>/05/geography_outsiderness_trajectory.tsv
+         assets/<date>/05/geography_outsiderness_trajectory.png
+         assets/<date>/05/geography_outsiderness_field_check.png
 """
+import sys
 from pathlib import Path
 
 import matplotlib.lines as mlines
@@ -61,8 +62,11 @@ from scipy.stats import gaussian_kde
 
 from geography_lq import ISO3_TO_NAME
 
-ASSETS = Path(__file__).resolve().parents[1] / "assets"
-REPORTS = ASSETS / "reports"
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # 05-reporting, for setup_run
+from setup_run import setup  # noqa: E402
+
+# Today's run folder (assets/<date>/05/); set by setup() when run as a script.
+RUN = None
 
 BW = 0.15               # matches density_eras.py / the shipped density-ratio map
 REF_SAMPLE = 3000       # papers subsampled to form the percentile reference
@@ -87,15 +91,15 @@ HIGHLIGHT = ["CHN", "USA", "CAN", "DEU"]
 
 # ── data ──────────────────────────────────────────────────────────────────────
 def load():
-    pc = pd.read_csv(REPORTS / "joint_umap_papers_xy.tsv", sep="\t")
-    praw = pd.read_csv(ASSETS / "synbio_openalex.txt", sep="\t",
+    pc = pd.read_csv(RUN.get("05", "joint_umap_papers_xy.tsv"), sep="\t")
+    praw = pd.read_csv(RUN.get("01", "synbio_openalex.txt"), sep="\t",
                        usecols=["id", "publication_year"])
     praw["year"] = pd.to_numeric(praw["publication_year"], errors="coerce")
     dp = pc.merge(praw[["id", "year"]], on="id").dropna(subset=["year"])
     dp["year"] = dp["year"].astype(int)
 
-    tc = pd.read_csv(REPORTS / "joint_umap_teams_xy.tsv", sep="\t")
-    traw = pd.read_csv(ASSETS / "igem.txt", sep="\t", usecols=["UT", "Countries", "Year_y"])
+    tc = pd.read_csv(RUN.get("05", "joint_umap_teams_xy.tsv"), sep="\t")
+    traw = pd.read_csv(RUN.get("00", "igem.txt"), sep="\t", usecols=["UT", "Countries", "Year_y"])
     traw["year"] = pd.to_numeric(traw["Year_y"], errors="coerce")
     dt = tc.merge(traw[["UT", "Countries", "year"]], on="UT").dropna(subset=["year"])
     dt["year"] = dt["year"].astype(int)
@@ -334,7 +338,7 @@ def main():
     print(f"corr(contemp, log2 density-ratio) = {ok['contemp'].corr(ok['ratio']):+.3f}   "
           f"(Spearman {ok['contemp'].corr(ok['ratio'], method='spearman'):+.3f})")
 
-    dt.to_csv(REPORTS / "geography_outsiderness_teams.tsv", sep="\t", index=False)
+    dt.to_csv(RUN.out("geography_outsiderness_teams.tsv"), sep="\t", index=False)
 
     # ── global trends, team-level (one row per team, not per team-country)
     gb, gse, gr2 = ols_slope(ok["year"].to_numpy(float), ok["contemp"].to_numpy())
@@ -363,7 +367,7 @@ def main():
     print(f"\ncountries plotted: {len(keep)}  ({', '.join(keep)})")
 
     slopes = country_slopes(ex, keep)
-    traj.to_csv(REPORTS / "geography_outsiderness_trajectory.tsv", sep="\t", index=False)
+    traj.to_csv(RUN.out("geography_outsiderness_trajectory.tsv"), sep="\t", index=False)
 
     print("\nPer-country trend in outsiderness (contemporaneous field, team-level OLS):")
     print(f'  {"country":20s}{"n":>6s}{"early":>8s}{"late":>7s}{"slope/yr":>11s}{"σ":>7s}{"rel.slope":>11s}')
@@ -379,16 +383,17 @@ def main():
     print("  'rel.slope' nets out the year's global mean: a country's movement relative to\n"
           "   its contemporaries. Unlike the LQ, it is not forced to sum to zero.")
 
-    lq = pd.read_csv(REPORTS / "geography_location_quotient.tsv", sep="\t")
+    lq = pd.read_csv(RUN.get("05", "geography_location_quotient.tsv"), sep="\t")
     lq["log2_lq_overlap"] = pd.to_numeric(lq["log2_lq_overlap"], errors="coerce")
 
     plot_trajectories(traj, slopes, lq, g_contemp, (gb, gse),
-                      REPORTS / "geography_outsiderness_trajectory.png")
+                      RUN.out("geography_outsiderness_trajectory.png"))
     plot_field_check(g_contemp, g_fixed, (gb, gse), (fb, fse),
-                     REPORTS / "geography_outsiderness_field_check.png")
-    print(f"Saved → {REPORTS/'geography_outsiderness_trajectory.tsv'}")
-    print(f"Saved → {REPORTS/'geography_outsiderness_teams.tsv'}")
+                     RUN.out("geography_outsiderness_field_check.png"))
+    print(f"Saved → {RUN.out('geography_outsiderness_trajectory.tsv')}")
+    print(f"Saved → {RUN.out('geography_outsiderness_teams.tsv')}")
 
 
 if __name__ == "__main__":
+    RUN = setup()
     main()

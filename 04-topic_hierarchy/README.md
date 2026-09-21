@@ -8,7 +8,7 @@ AI-generated names to the mid and high groups.
 
 Install the project-level dependencies (`requirements.txt`). The hierarchy
 notebooks load the fitted BERTopic model saved by `02-topic_model`
-(`assets/topic_models/<prefix>_topic_model`), so that file must exist. The
+(`<prefix>_topic_model` in a run folder's `02/`), so that file must exist. The
 naming notebooks also require an OpenAI API key stored at
 `03-topic_names/openai.key` (read from there directly).
 
@@ -21,6 +21,7 @@ naming calls for) the other.
 ```text
 04-topic_hierarchy/
 ├── prompts_hierarchy.yaml   theme definition + hierarchy-naming prompt (shared)
+├── setup_run.py             prepares today's run folder (assets/<date>/04/)
 ├── aux/                     shared helper functions imported by every notebook
 ├── 01-teams/                iGEM teams hierarchy
 └── 02-papers/               SynBio OpenAlex papers hierarchy
@@ -34,7 +35,7 @@ only in a small CONFIG block at the top (`PREFIX`, `ID_COL`, `YEAR_COL`,
 
 | Notebook | Purpose |
 |---|---|
-| `get_topic_hierarchy.ipynb` | Build the low → mid → high hierarchy from the BERTopic merge tree; auto-select the mid/high levels by silhouette; write the three report tables → `assets/reports/` |
+| `get_topic_hierarchy.ipynb` | Build the low → mid → high hierarchy from the BERTopic merge tree; auto-select the mid/high levels by silhouette; write the three report tables → `assets/<date>/04/` |
 | `name_hierarchy_levels.ipynb` | Name the mid and high groups with an LLM (OpenAI function calling) and add `mid_name` / `high_name` to the hierarchy table |
 
 Run `get_topic_hierarchy.ipynb` before `name_hierarchy_levels.ipynb` within a
@@ -55,7 +56,7 @@ thin, dataset-specific orchestration layer. Imported via
 
 | Module | Key functions |
 |---|---|
-| `paths.py` | `PROJECT_ROOT`, `STEP_DIR`, `ASSETS_DIR`, `MODELS_DIR`, `EMBEDDINGS_DIR`, `REPORTS_DIR`, `PROMPTS_PATH`, `OPENAI_KEY_PATH`, `OPENAI_MODEL`, `SEED`, `HIGH_K_MIN/MAX`, `set_seed()` |
+| `paths.py` | `PROJECT_ROOT`, `STEP_DIR`, `PROMPTS_PATH`, `OPENAI_KEY_PATH`, `OPENAI_MODEL`, `SEED`, `HIGH_K_MIN/MAX`, `set_seed()` |
 | `hierarchy.py` | `load_hierarchy_inputs()`, `select_hierarchy_levels()`, `write_hierarchy_reports()`, and the building blocks `build_hierarchy_maps()`, `get_topic_embeddings()`, `select_best_k()`, `auto_mid_k_range()`, `build_topic_hierarchy_df()`, `build_doc_map()`, `build_name_map()`, `build_summary()` |
 | `naming.py` | `load_prompts()`, `make_client()`, `build_system_prompt()`, `build_rename_tool()`, `build_user_message()`, `name_hierarchy_level()`, `load_naming_inputs()`, `save_named_hierarchy()` |
 
@@ -63,7 +64,13 @@ Paths in `paths.py` resolve from the module's own location, so the notebooks
 work regardless of the kernel's working directory, and `prompts_hierarchy.yaml`
 / `03-topic_names/openai.key` are always found.
 
-## Outputs (per corpus, in `assets/reports/`)
+Data files come from this folder's `setup_run.py`: each notebook calls
+`RUN = setup(corpus=PREFIX)`, which copies the files it reads (dataset, topic
+model, document topics and corpus from 02, topic names from 03) into today's run
+folder when missing and returns the handle the `hierarchy.py` / `naming.py` I/O
+helpers take as their first argument (see *Where results live* in the root README).
+
+## Outputs (per corpus, in `assets/<date>/04/`)
 
 - `<prefix>_topic_hierarchy_map.tsv` — document-level mapping (`<id>, low, mid, high`)
 - `<prefix>_topic_name_hierarchy.tsv` — low-level names mapped to `low, mid, high`,

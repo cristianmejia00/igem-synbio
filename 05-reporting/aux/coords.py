@@ -3,8 +3,8 @@
 This module is the single source of truth for coordinates (e1). The projection
 stacks the papers and teams embeddings and fits **one** 2D UMAP, so a paper and
 a team project that land near each other are directly comparable. The resulting
-``(x, y)`` are saved to ``assets/reports`` and reloaded by all downstream
-notebooks — nothing recomputes or re-stretches them.
+``(x, y)`` are saved to the run folder (``assets/<date>/05/``) and reloaded by
+all downstream notebooks — nothing recomputes or re-stretches them.
 
 The plotting frames carry the three hierarchy levels side by side so a single
 frame can be coloured by micro / meso / macro (e2):
@@ -19,10 +19,7 @@ import numpy as np
 import pandas as pd
 from umap import UMAP
 
-from .paths import (
-    ASSETS_DIR, EMBEDDINGS_DIR, MODELS_DIR, OUTLIER_COLOR, PALETTE,
-    PAPERS_COORDS_FILE, REPORTS_DIR, SEED, TEAMS_COORDS_FILE,
-)
+from .paths import OUTLIER_COLOR, PALETTE, PAPERS_COORDS_FILE, SEED, TEAMS_COORDS_FILE
 
 # level name -> (id column, label column) in the plot frames
 LEVELS = {
@@ -86,19 +83,18 @@ def compute_joint_umap(papers_emb, teams_emb, seed=SEED, n_neighbors=15, min_dis
     return all_xy[:len(papers_emb)], all_xy[len(papers_emb):]
 
 
-def save_coords(papers_ids, papers_xy, teams_ids, teams_xy, reports_dir=REPORTS_DIR):
-    """Persist per-document coordinates keyed by their id columns."""
-    reports_dir.mkdir(parents=True, exist_ok=True)
+def save_coords(run, papers_ids, papers_xy, teams_ids, teams_xy):
+    """Persist per-document coordinates keyed by their id columns (run folder)."""
     pd.DataFrame({"id": papers_ids, "x": papers_xy[:, 0], "y": papers_xy[:, 1]}).to_csv(
-        reports_dir / PAPERS_COORDS_FILE, sep="\t", index=False)
+        run.out(PAPERS_COORDS_FILE), sep="\t", index=False)
     pd.DataFrame({"UT": teams_ids, "x": teams_xy[:, 0], "y": teams_xy[:, 1]}).to_csv(
-        reports_dir / TEAMS_COORDS_FILE, sep="\t", index=False)
+        run.out(TEAMS_COORDS_FILE), sep="\t", index=False)
 
 
-def load_coords(reports_dir=REPORTS_DIR):
+def load_coords(run):
     """Load the persisted papers / teams coordinate tables."""
-    papers = pd.read_csv(reports_dir / PAPERS_COORDS_FILE, sep="\t")
-    teams = pd.read_csv(reports_dir / TEAMS_COORDS_FILE, sep="\t")
+    papers = pd.read_csv(run.get("05", PAPERS_COORDS_FILE), sep="\t")
+    teams = pd.read_csv(run.get("05", TEAMS_COORDS_FILE), sep="\t")
     return papers, teams
 
 
@@ -123,30 +119,30 @@ def _build_corpus_frame(coords, doc_topics, id_col, hierarchy, raw, year_col):
     return df.rename(columns={year_col: "year"})
 
 
-def load_plot_data(reports_dir=REPORTS_DIR, models_dir=MODELS_DIR, assets_dir=ASSETS_DIR):
+def load_plot_data(run):
     """Load everything the plots need, returning unified, hierarchy-aware frames.
 
     Returns ``(df_papers, df_teams, xlim, ylim)``. Each frame has columns:
     ``x, y, topic, low_name, mid, high, mid_name, high_name, year`` (papers also
     carry ``cited_by_count``); ``id`` for papers and ``UT`` for teams.
     """
-    papers_coords, teams_coords = load_coords(reports_dir)
+    papers_coords, teams_coords = load_coords(run)
 
-    papers_dt = pd.read_csv(models_dir / "papers_doc_topics.txt", sep="\t")
-    teams_dt = pd.read_csv(models_dir / "teams_doc_topics.txt", sep="\t")
+    papers_dt = pd.read_csv(run.get("02", "papers_doc_topics.txt"), sep="\t")
+    teams_dt = pd.read_csv(run.get("02", "teams_doc_topics.txt"), sep="\t")
 
-    papers_h = pd.read_csv(reports_dir / "papers_topic_name_hierarchy.tsv", sep="\t")
-    teams_h = pd.read_csv(reports_dir / "teams_topic_name_hierarchy.tsv", sep="\t")
+    papers_h = pd.read_csv(run.get("04", "papers_topic_name_hierarchy.tsv"), sep="\t")
+    teams_h = pd.read_csv(run.get("04", "teams_topic_name_hierarchy.tsv"), sep="\t")
 
     papers_raw = pd.read_csv(
-        assets_dir / "synbio_openalex.txt", sep="\t",
+        run.get("01", "synbio_openalex.txt"), sep="\t",
         usecols=["id", "publication_year", "cited_by_count"],
     )
     papers_raw["publication_year"] = pd.to_numeric(papers_raw["publication_year"], errors="coerce")
     papers_raw["cited_by_count"] = (
         pd.to_numeric(papers_raw["cited_by_count"], errors="coerce").fillna(0).astype(int)
     )
-    teams_raw = pd.read_csv(assets_dir / "igem.txt", sep="\t", usecols=["UT", "Year_y"])
+    teams_raw = pd.read_csv(run.get("00", "igem.txt"), sep="\t", usecols=["UT", "Year_y"])
     teams_raw["Year_y"] = pd.to_numeric(teams_raw["Year_y"], errors="coerce")
 
     df_papers = _build_corpus_frame(papers_coords, papers_dt, "id", papers_h, papers_raw, "publication_year")

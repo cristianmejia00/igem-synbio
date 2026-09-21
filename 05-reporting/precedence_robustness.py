@@ -13,11 +13,12 @@ Re-implements the density-ratio + precedence neighbourhood logic of
 It first reproduces the shipped ``overlap_precedence_full.tsv`` at the default
 parameters (radius_mult=1.5, min_nearby=3) as a correctness check.
 
-Outputs: assets/reports/precedence_robustness.tsv
-         assets/reports/precedence_robustness_sensitivity.tsv
-         assets/reports/precedence_robustness.png
+Outputs: assets/<date>/05/precedence_robustness.tsv
+         assets/<date>/05/precedence_robustness_sensitivity.tsv
+         assets/<date>/05/precedence_robustness.png
 """
 import csv
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -27,22 +28,24 @@ from scipy.stats import gaussian_kde
 from scipy.spatial import cKDTree
 from scipy.interpolate import RegularGridInterpolator
 
-ASSETS = Path(__file__).resolve().parents[1] / "assets"
-REPORTS = ASSETS / "reports"
-MODELS = ASSETS / "topic_models"
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # 05-reporting, for setup_run
+from setup_run import setup  # noqa: E402
+
+# Today's run folder (assets/<date>/05/); set by setup() when run as a script.
+RUN = None
 _STATS = ("q1", "median", "mean")
 
 
 # ── data ──────────────────────────────────────────────────────────────────────
 def load_frames():
-    pc = pd.read_csv(REPORTS / "joint_umap_papers_xy.tsv", sep="\t")
-    tc = pd.read_csv(REPORTS / "joint_umap_teams_xy.tsv", sep="\t")
-    pdt = pd.read_csv(MODELS / "papers_doc_topics.txt", sep="\t")
-    tdt = pd.read_csv(MODELS / "teams_doc_topics.txt", sep="\t")
-    praw = pd.read_csv(ASSETS / "synbio_openalex.txt", sep="\t",
+    pc = pd.read_csv(RUN.get("05", "joint_umap_papers_xy.tsv"), sep="\t")
+    tc = pd.read_csv(RUN.get("05", "joint_umap_teams_xy.tsv"), sep="\t")
+    pdt = pd.read_csv(RUN.get("02", "papers_doc_topics.txt"), sep="\t")
+    tdt = pd.read_csv(RUN.get("02", "teams_doc_topics.txt"), sep="\t")
+    praw = pd.read_csv(RUN.get("01", "synbio_openalex.txt"), sep="\t",
                        usecols=["id", "publication_year"])
     praw["year"] = pd.to_numeric(praw["publication_year"], errors="coerce")
-    traw = pd.read_csv(ASSETS / "igem.txt", sep="\t", usecols=["UT", "Year_y"])
+    traw = pd.read_csv(RUN.get("00", "igem.txt"), sep="\t", usecols=["UT", "Year_y"])
     traw["year"] = pd.to_numeric(traw["Year_y"], errors="coerce")
 
     dp = pc.merge(pdt, on="id").merge(praw[["id", "year"]], on="id")
@@ -109,7 +112,7 @@ def main():
     xlim, ylim = shared_limits(dp, dt)
     interp = density_interp(dp, dt, xlim, ylim)
 
-    ref = pd.read_csv(REPORTS / "overlap_precedence_full.tsv", sep="\t")
+    ref = pd.read_csv(RUN.get("05", "overlap_precedence_full.tsv"), sep="\t")
     names = dict(zip(ref["topic"].astype(int), ref["global_name"]))
 
     base = precedence(dp, dt, interp, names, 1.5, 3)
@@ -138,7 +141,7 @@ def main():
         print(f"    by delta_{k:6s}: {neg:2d} iGEM-first, {pos:2d} papers-first")
 
     base.drop(columns=[f"sign_{k}" for k in _STATS]).to_csv(
-        REPORTS / "precedence_robustness.tsv", sep="\t", index=False)
+        RUN.out("precedence_robustness.tsv"), sep="\t", index=False)
 
     # (b) split stability across radius_mult x min_nearby
     print("\n(b) Split stability across neighbourhood parameters (direction by delta_q1):")
@@ -157,7 +160,7 @@ def main():
             sens.append({"radius_mult": rm, "min_nearby": mn, "n_tested": len(d),
                          "n_igem_first": neg, "n_papers_first": pos, "n_sign_flips_vs_default": flips})
             print(f'    {rm:7.1f}{mn:6d}{len(d):7d}{neg:8d}{pos:7d}{flips:7d}')
-    pd.DataFrame(sens).to_csv(REPORTS / "precedence_robustness_sensitivity.tsv", sep="\t", index=False)
+    pd.DataFrame(sens).to_csv(RUN.out("precedence_robustness_sensitivity.tsv"), sep="\t", index=False)
     print("    * sign flips of delta_q1 vs the default (1.5, 3) run, among shared topics.")
 
     # figure: delta_q1 vs delta_mean, coloured by agreement
@@ -183,11 +186,12 @@ def main():
     ax.legend(loc="upper left", fontsize=8, framealpha=0.9)
     ax.grid(alpha=0.2)
     fig.tight_layout()
-    fig.savefig(REPORTS / "precedence_robustness.png", dpi=180, bbox_inches="tight")
-    print(f"\nSaved → {REPORTS/'precedence_robustness.tsv'}")
-    print(f"Saved → {REPORTS/'precedence_robustness_sensitivity.tsv'}")
-    print(f"Saved → {REPORTS/'precedence_robustness.png'}")
+    fig.savefig(RUN.out("precedence_robustness.png"), dpi=180, bbox_inches="tight")
+    print(f"\nSaved → {RUN.out('precedence_robustness.tsv')}")
+    print(f"Saved → {RUN.out('precedence_robustness_sensitivity.tsv')}")
+    print(f"Saved → {RUN.out('precedence_robustness.png')}")
 
 
 if __name__ == "__main__":
+    RUN = setup()
     main()

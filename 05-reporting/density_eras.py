@@ -7,9 +7,10 @@ recent volume bulge. We answer by recomputing the *same* self-normalised
 period — 2004-2014 and 2015-2025 — on one shared grid, and quantifying how
 similar the two maps are (grid-cell correlation and per-topic zone agreement).
 
-Outputs: assets/reports/density_ratio_eras.png
+Outputs: assets/<date>/05/density_ratio_eras.png
          (correlation and zone-agreement statistics are printed)
 """
+import sys
 from pathlib import Path
 
 import matplotlib.colors as mcolors
@@ -19,21 +20,23 @@ import pandas as pd
 from scipy.stats import gaussian_kde, pearsonr
 from scipy.ndimage import gaussian_filter
 
-ASSETS = Path(__file__).resolve().parents[1] / "assets"
-REPORTS = ASSETS / "reports"
-MODELS = ASSETS / "topic_models"
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # 05-reporting, for setup_run
+from setup_run import setup  # noqa: E402
+
+# Today's run folder (assets/<date>/05/); set by setup() when run as a script.
+RUN = None
 ERAS = [("2004–2014", 2004, 2014), ("2015–2025", 2015, 2025)]
 GRID = 300
 BW = 0.15
 
 
 def load_frames():
-    pc = pd.read_csv(REPORTS / "joint_umap_papers_xy.tsv", sep="\t")
-    tc = pd.read_csv(REPORTS / "joint_umap_teams_xy.tsv", sep="\t")
-    pdt = pd.read_csv(MODELS / "papers_doc_topics.txt", sep="\t")
-    praw = pd.read_csv(ASSETS / "synbio_openalex.txt", sep="\t", usecols=["id", "publication_year"])
+    pc = pd.read_csv(RUN.get("05", "joint_umap_papers_xy.tsv"), sep="\t")
+    tc = pd.read_csv(RUN.get("05", "joint_umap_teams_xy.tsv"), sep="\t")
+    pdt = pd.read_csv(RUN.get("02", "papers_doc_topics.txt"), sep="\t")
+    praw = pd.read_csv(RUN.get("01", "synbio_openalex.txt"), sep="\t", usecols=["id", "publication_year"])
     praw["year"] = pd.to_numeric(praw["publication_year"], errors="coerce")
-    traw = pd.read_csv(ASSETS / "igem.txt", sep="\t", usecols=["UT", "Year_y"])
+    traw = pd.read_csv(RUN.get("00", "igem.txt"), sep="\t", usecols=["UT", "Year_y"])
     traw["year"] = pd.to_numeric(traw["Year_y"], errors="coerce")
     dp = pc.merge(pdt, on="id").merge(praw[["id", "year"]], on="id")
     dt = tc.merge(traw[["UT", "year"]], on="UT")
@@ -120,9 +123,10 @@ def main():
     cbar.set_label("log2(teams density / papers density)")
     fig.suptitle(f"Spatial division of labour is stable across eras "
                  f"(grid r = {r_dense:.2f}, zone agreement = {100*agree:.0f}%)", fontsize=13)
-    fig.savefig(REPORTS / "density_ratio_eras.png", dpi=180, bbox_inches="tight")
-    print(f"\nSaved → {REPORTS/'density_ratio_eras.png'}")
+    fig.savefig(RUN.out("density_ratio_eras.png"), dpi=180, bbox_inches="tight")
+    print(f"\nSaved → {RUN.out('density_ratio_eras.png')}")
 
 
 if __name__ == "__main__":
+    RUN = setup()
     main()

@@ -10,18 +10,18 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
 
-from .paths import ASSETS_DIR, EMBEDDINGS_DIR, MODELS_DIR, REPORTS_DIR
-
-
-def load_outlier_inputs(raw_file, embeddings_file, doc_topics_file, id_col):
+def load_outlier_inputs(run, raw_key, embeddings_file, doc_topics_file, id_col):
     """Load metadata + embeddings + topic assignments for one dataset.
+
+    ``raw_key`` is the dataset as ``"<stage>/<file>"`` (e.g. ``"00/igem.txt"``);
+    the embeddings and doc-topics files are read from stage 02.
 
     Returns ``(df, embeddings, doc_topics)`` where ``df`` is the original
     metadata merged with the per-document ``topic`` label.
     """
-    meta = pd.read_csv(ASSETS_DIR / raw_file, sep="\t")
-    doc_topics = pd.read_csv(MODELS_DIR / doc_topics_file, sep="\t")
-    embeddings = np.load(EMBEDDINGS_DIR / embeddings_file)
+    meta = pd.read_csv(run.get(raw_key), sep="\t")
+    doc_topics = pd.read_csv(run.get("02", doc_topics_file), sep="\t")
+    embeddings = np.load(run.get("02", embeddings_file))
     df = meta.merge(doc_topics, on=id_col, how="inner")
     return df, embeddings, doc_topics
 
@@ -232,11 +232,10 @@ def sample_outlier_table(df, cols, k=20, seed=42, truncate_col=None, truncate_le
     return sample
 
 
-def save_orphans(df, cols, out_file, reports_dir=REPORTS_DIR):
-    """Write the outlier documents to a TSV under ``reports_dir``."""
-    reports_dir.mkdir(parents=True, exist_ok=True)
+def save_orphans(run, df, cols, out_file):
+    """Write the outlier documents to a TSV in the run folder."""
     orphans = df.loc[df["topic"] == -1, cols].copy()
-    orphans.to_csv(reports_dir / out_file, sep="\t", index=False)
+    orphans.to_csv(run.out(out_file), sep="\t", index=False)
     return orphans
 
 

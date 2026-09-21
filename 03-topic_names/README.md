@@ -25,6 +25,7 @@ calls for the other.
 03-topic_names/
 ├── prompts.yaml         theme definition + prompt templates (shared)
 ├── openai.key           OpenAI API key (git-ignored, shared)
+├── setup_run.py         prepares today's run folder (assets/<date>/03/)
 ├── aux/                 shared helper functions imported by every notebook
 ├── 01-teams/            iGEM teams naming
 └── 02-papers/           SynBio OpenAlex papers naming
@@ -35,7 +36,7 @@ only in a small CONFIG block at the top (`PREFIX`, `ID_COL`):
 
 | Notebook | Purpose |
 |---|---|
-| `get_topic_names_part1.ipynb` | Per-cluster naming: send representative documents to GPT for a description, an enhanced synthesis, and a short name → `assets/topic_models/<prefix>_topic_names.txt` |
+| `get_topic_names_part1.ipynb` | Per-cluster naming: send representative documents to GPT for a description, an enhanced synthesis, and a short name → `assets/<date>/03/<prefix>_topic_names.txt` |
 | `get_topic_names_part2.ipynb` | Global renaming: give the LLM all topics at once (via function calling) so every cluster gets a distinct `global_name` → overwrites the same file |
 
 Run Part 1 before Part 2 for a given corpus.
@@ -58,7 +59,7 @@ thin, dataset-specific orchestration layer. Imported via
 
 | Module | Key functions |
 |---|---|
-| `paths.py` | `PROJECT_ROOT`, `STEP_DIR`, `ASSETS_DIR`, `MODELS_DIR`, `EMBEDDINGS_DIR`, `PROMPTS_PATH`, `OPENAI_KEY_PATH`, `OPENAI_MODEL`, `TOP_N_DOCS` |
+| `paths.py` | `PROJECT_ROOT`, `STEP_DIR`, `PROMPTS_PATH`, `OPENAI_KEY_PATH`, `OPENAI_MODEL`, `TOP_N_DOCS` |
 | `openai_client.py` | `load_prompts()`, `make_client()`, `ask_gpt()`, `fmt_prompt()` |
 | `tables.py` | `load_topic_corpus()`, `load_topic_names()`, `save_topic_names()` |
 | `naming.py` | `get_representative_texts()`, `name_topics()` (Part 1) |
@@ -67,6 +68,12 @@ thin, dataset-specific orchestration layer. Imported via
 Paths in `paths.py` are resolved from the module's own location, so the
 notebooks work regardless of the kernel's working directory, and `prompts.yaml`
 / `openai.key` are always found at the step root.
+
+Data files come from this folder's `setup_run.py`: each notebook calls
+`RUN = setup(corpus=PREFIX)`, which copies the stage-02 files it reads (topic info,
+document topics, corpus) into today's run folder when missing and returns the
+handle used by the `tables.py` helpers. Names are written to `assets/<date>/03/`
+(see *Where results live* in the root README).
 
 ## Notes on the pipeline
 

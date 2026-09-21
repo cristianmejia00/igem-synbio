@@ -7,7 +7,7 @@ bodies across teams and papers.
 
 Modules
 -------
-paths          : filesystem paths, shared resources, and constants
+paths          : shared resources (prompts, OpenAI key) and constants
 openai_client  : prompt loading, OpenAI client, and generic chat helpers
 tables         : load / save the topic-info, corpus, and topic-name tables
 naming         : per-cluster description + name generation (part 1)

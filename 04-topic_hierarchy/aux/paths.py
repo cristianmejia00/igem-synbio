@@ -1,9 +1,12 @@
-"""Filesystem paths, shared resources, and project-wide constants.
+"""Shared resources and project-wide constants.
 
 Paths are resolved from this file's own location so they stay correct no matter
 which directory a notebook's kernel happens to start in::
 
     aux/paths.py  ->  aux/  ->  04-topic_hierarchy/  ->  <repo root>
+
+Input and output data locations come from the run folder (``assets/<date>/04/``)
+returned by ``setup_run.setup()``; see ``run_paths.py`` at the repo root.
 """
 import os
 from pathlib import Path
@@ -12,11 +15,6 @@ import numpy as np
 
 STEP_DIR = Path(__file__).resolve().parents[1]      # 04-topic_hierarchy/
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # <repo root>
-
-ASSETS_DIR = PROJECT_ROOT / "assets"
-MODELS_DIR = ASSETS_DIR / "topic_models"
-EMBEDDINGS_DIR = ASSETS_DIR / "embeddings"
-REPORTS_DIR = ASSETS_DIR / "reports"
 
 # Shared resources. prompts_hierarchy.yaml stays at the step root; the OpenAI
 # key is reused from 03-topic_names (the single place it lives).

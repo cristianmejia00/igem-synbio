@@ -18,6 +18,7 @@ stochastic nature of topic models, perturbs) the other.
 
 ```text
 02-topic_model/
+├── setup_run.py         prepares today's run folder (assets/<date>/02/)
 ├── aux/                 shared helper functions imported by every notebook
 ├── 01-teams/            iGEM teams pipeline
 ├── 02-papers/           SynBio OpenAlex papers pipeline
@@ -30,9 +31,9 @@ hyperparameter grid):
 
 | Notebook | Purpose |
 |---|---|
-| `get_embeddings.ipynb` | Concatenate title + abstract, clean, and encode with `all-MiniLM-L6-v2` → `assets/embeddings/` |
-| `get_topics.ipynb` | Fit a single BERTopic model (UMAP → HDBSCAN) with manual hyperparameters → `assets/topic_models/` |
-| `get_topics_with_evaluation.ipynb` | **Recommended.** Grid-search UMAP/HDBSCAN parameters, score each by C_v coherence / diversity / DBCV, pick the best → `assets/topic_models/` (plus `<prefix>_grid_search.txt` with every configuration's scores) |
+| `get_embeddings.ipynb` | Concatenate title + abstract, clean, and encode with `all-MiniLM-L6-v2` → `assets/<date>/02/` |
+| `get_topics.ipynb` | Fit a single BERTopic model (UMAP → HDBSCAN) with manual hyperparameters → `assets/<date>/02/` |
+| `get_topics_with_evaluation.ipynb` | **Recommended.** Grid-search UMAP/HDBSCAN parameters, score each by C_v coherence / diversity / DBCV, pick the best → `assets/<date>/02/` (plus `<prefix>_grid_search.txt` with every configuration's scores) |
 
 `03-combined/` holds the cross-corpus analysis:
 
@@ -54,14 +55,18 @@ thin, dataset-specific orchestration layer. Imported via
 
 | Module | Key functions |
 |---|---|
-| `paths.py` | `PROJECT_ROOT`, `ASSETS_DIR`, `EMBEDDINGS_DIR`, `MODELS_DIR`, `REPORTS_DIR`, `SEED`, `EMBEDDING_MODEL`, `set_seed()` |
+| `paths.py` | `PROJECT_ROOT`, `SEED`, `EMBEDDING_MODEL`, `set_seed()` |
 | `embeddings.py` | `prepare_text()`, `encode_texts()`, `save_embeddings()` |
 | `topic_modeling.py` | `load_corpus()`, `fit_topic_model()`, `save_topic_outputs()` |
 | `evaluation.py` | `coherence_cv()`, `topic_diversity()`, `dbcv_score()`, `grid_search()` |
 | `orphans.py` | `load_outlier_inputs()`, `outlier_summary()`, `plot_outlier_rate_by_year()`, `plot_text_length()`, `language_outlier_table()`, `nearest_centroid_analysis()`, `citation_profile()`, `concept_overlap()`, `sample_outlier_docs()`, `sample_outlier_table()`, `save_orphans()`, `build_summary()` |
 
-Paths in `paths.py` are resolved from the module's own location, so the
-notebooks work regardless of the kernel's working directory.
+File locations come from this folder's `setup_run.py`: each notebook's config
+cell calls `RUN = setup(corpus=...)`, which copies the dataset it needs
+(`00/igem.txt` or `01/synbio_openalex.txt`) into today's run folder when missing
+and returns the handle used to read inputs (`RUN.get`) and write outputs
+(`RUN.out`) in `assets/<date>/02/`. The I/O helpers above take `RUN` as their
+first argument (see *Where results live* in the root README).
 
 ## Notes on the pipeline
 
@@ -71,14 +76,14 @@ For each record the title and abstract are concatenated into a single string,
 non-alphabetic noise is removed, and records left without usable text are
 dropped. The cleaned text is encoded with the `all-MiniLM-L6-v2`
 sentence-transformer (384-dim). Outputs: `<corpus>_embeddings.npy` and the
-aligned `<corpus>_corpus.txt` (id + text) under `assets/embeddings/`.
+aligned `<corpus>_corpus.txt` (id + text) in `assets/<date>/02/`.
 
 ### Topics (`get_topics.ipynb`)
 
 Builds a UMAP (dimensionality reduction) → HDBSCAN (density clustering) →
 BERTopic (n-gram topic extraction) pipeline. Minimum cluster size is set
 manually per corpus. Saves the fitted model, a per-topic summary table, and
-document-level topic assignments to `assets/topic_models/`.
+document-level topic assignments to `assets/<date>/02/`.
 
 ### Topics with evaluation (`get_topics_with_evaluation.ipynb`) — recommended
 
@@ -109,5 +114,5 @@ reassigns *all* noise documents to their nearest topic without retraining.
 Profiles the topic −1 documents of both corpora: outlier rate by year, text
 length, language (papers), distance to the nearest cluster centroid, citation
 profile (papers), concept overlap (papers), and random samples. Writes the
-orphan documents to `assets/reports/orphans_papers.tsv` and
-`assets/reports/orphans_teams.tsv`.
+orphan documents to `orphans_papers.tsv` and `orphans_teams.tsv` in
+`assets/<date>/02/`.

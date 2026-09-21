@@ -25,12 +25,13 @@ correlate it with the country's overall LQ.
 
 Inputs : joint coords, papers_doc_topics, igem.txt, overlap_precedence_full.tsv,
          geography_location_quotient.tsv
-Outputs: assets/reports/geography_topic_matrix.tsv
-         assets/reports/geography_topic_matrix.png
-         assets/reports/geography_lead_orientation.png
+Outputs: assets/<date>/05/geography_topic_matrix.tsv
+         assets/<date>/05/geography_topic_matrix.png
+         assets/<date>/05/geography_lead_orientation.png
 """
 import csv
 from collections import Counter
+import sys
 from pathlib import Path
 
 import matplotlib.colors as mcolors
@@ -40,17 +41,19 @@ import pandas as pd
 from scipy.spatial import cKDTree
 from scipy.stats import pearsonr, spearmanr
 
-ASSETS = Path(__file__).resolve().parents[1] / "assets"
-REPORTS = ASSETS / "reports"
-MODELS = ASSETS / "topic_models"
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # 05-reporting, for setup_run
+from setup_run import setup  # noqa: E402
+
+# Today's run folder (assets/<date>/05/); set by setup() when run as a script.
+RUN = None
 RADIUS_MULT, MIN_NEARBY, MIN_TEAMS = 1.5, 3, 10
 
 
 def load():
-    dp = (pd.read_csv(REPORTS / "joint_umap_papers_xy.tsv", sep="\t")
-          .merge(pd.read_csv(MODELS / "papers_doc_topics.txt", sep="\t"), on="id"))
-    tc = pd.read_csv(REPORTS / "joint_umap_teams_xy.tsv", sep="\t")
-    meta = pd.read_csv(ASSETS / "igem.txt", sep="\t", usecols=["UT", "Countries"])
+    dp = (pd.read_csv(RUN.get("05", "joint_umap_papers_xy.tsv"), sep="\t")
+          .merge(pd.read_csv(RUN.get("02", "papers_doc_topics.txt"), sep="\t"), on="id"))
+    tc = pd.read_csv(RUN.get("05", "joint_umap_teams_xy.tsv"), sep="\t")
+    meta = pd.read_csv(RUN.get("00", "igem.txt"), sep="\t", usecols=["UT", "Countries"])
     dt = tc.merge(meta, on="UT")
     dt["country"] = (dt["Countries"].astype(str)
                      .str.replace(",", ";").str.split(";").str[0].str.strip())
@@ -79,10 +82,10 @@ def nearby_counts(dp, dt, order):
 
 def main():
     dp, dt = load()
-    order = (pd.read_csv(REPORTS / "overlap_precedence_full.tsv", sep="\t")
+    order = (pd.read_csv(RUN.get("05", "overlap_precedence_full.tsv"), sep="\t")
              .sort_values("delta_q1_years")[["topic", "global_name", "delta_q1_years"]]
              .reset_index(drop=True))
-    lq = pd.read_csv(REPORTS / "geography_location_quotient.tsv", sep="\t")
+    lq = pd.read_csv(RUN.get("05", "geography_location_quotient.tsv"), sep="\t")
     lq = lq[lq["log2_lq_overlap"].astype(str).ne("")].copy()
     lq["log2_lq_overlap"] = pd.to_numeric(lq["log2_lq_overlap"], errors="coerce")
 
@@ -151,7 +154,7 @@ def main():
         i, j = name_by_iso[r.country], topic_idx[r.topic]
         ct_lq.append(log2lq[i, j])
     long = long.assign(log2_lq_cell=np.round(ct_lq, 3))
-    long.to_csv(REPORTS / "geography_topic_matrix.tsv", sep="\t", index=False)
+    long.to_csv(RUN.out("geography_topic_matrix.tsv"), sep="\t", index=False)
 
     # ── matrix figure ─────────────────────────────────────────────────────────
     iso_to_name = dict(zip(lq["iso3"], lq["country"]))
@@ -189,8 +192,8 @@ def main():
     cbar = fig.colorbar(sc, ax=ax, fraction=0.018, pad=0.01)
     cbar.set_label("log2 LQ(country, topic)")
     fig.tight_layout()
-    fig.savefig(REPORTS / "geography_topic_matrix.png", dpi=160, bbox_inches="tight")
-    print(f"\nSaved → {REPORTS/'geography_topic_matrix.png'}")
+    fig.savefig(RUN.out("geography_topic_matrix.png"), dpi=160, bbox_inches="tight")
+    print(f"\nSaved → {RUN.out('geography_topic_matrix.png')}")
 
     # ── hypothesis scatter ────────────────────────────────────────────────────
     fig2, ax2 = plt.subplots(figsize=(9, 6.5), dpi=140)
@@ -210,10 +213,11 @@ def main():
                   f"Pearson r = {pr_r:.2f} (p={pr_p:.2f}), Spearman ρ = {sp_r:.2f}", fontsize=12)
     ax2.grid(alpha=0.2)
     fig2.tight_layout()
-    fig2.savefig(REPORTS / "geography_lead_orientation.png", dpi=160, bbox_inches="tight")
-    print(f"Saved → {REPORTS/'geography_lead_orientation.png'}")
-    print(f"Saved → {REPORTS/'geography_topic_matrix.tsv'}")
+    fig2.savefig(RUN.out("geography_lead_orientation.png"), dpi=160, bbox_inches="tight")
+    print(f"Saved → {RUN.out('geography_lead_orientation.png')}")
+    print(f"Saved → {RUN.out('geography_topic_matrix.tsv')}")
 
 
 if __name__ == "__main__":
+    RUN = setup()
     main()

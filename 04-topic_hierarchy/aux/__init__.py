@@ -7,7 +7,7 @@ bodies across teams and papers.
 
 Modules
 -------
-paths      : filesystem paths, shared resources, and constants
+paths      : shared resources (prompts, OpenAI key) and constants
 hierarchy  : build the low→mid→high hierarchy from a BERTopic merge tree, and
              write the per-corpus report tables
 naming     : LLM (function-calling) naming of the mid / high hierarchy groups

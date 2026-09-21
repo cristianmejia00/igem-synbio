@@ -4,9 +4,16 @@
 
 All input files are outputs of the previous pipeline steps (datasets,
 embeddings, topic assignments, topic names, and the hierarchy tables from
-`04-topic_hierarchy`), stored under `assets/`. `09-awards.ipynb` additionally
-reads `00-IGEM_teams_dataset/team_awards.tsv`. No external API access is needed.
-All outputs are written to `assets/reports/`.
+`04-topic_hierarchy`), stored in the run folders under `assets/`.
+`09-awards.ipynb` additionally reads `00-IGEM_teams_dataset/team_awards.tsv`. No
+external API access is needed.
+
+Every notebook and script starts with `RUN = setup()` from this folder's
+`setup_run.py`. It copies the upstream files it needs into today's run folder when
+they are missing there (from the newest earlier run), and all outputs are written
+to `assets/<date>/05/`. Files one 05 notebook reads from another (coordinates,
+precedence table, LQ table) are copied the same way, so any single notebook can be
+re-run on its own (see *Where results live* in the root README).
 
 ## Notebooks and run order
 
@@ -36,7 +43,7 @@ counts, average / median / std / min / max year, Price Index (share of teams in
 the last five years), average year rank (mean percentile rank of the team year
 across all teams), and the number of distinct countries (`n_countries`). Also
 shows a recency-vs-year-rank scatter (not saved). **Output:**
-`assets/reports/cluster_summary_igem.tsv`.
+`assets/<date>/05/cluster_summary_igem.tsv`.
 
 ### `02-cluster_summary_papers.ipynb`
 
@@ -46,8 +53,8 @@ log(1 + citations), and percentile rank); per topic the notebook reports paper
 count, average citations, the three normalised impact averages, average year,
 Price Index, and average year rank. It also draws impact-vs-recency and
 impact-vs-Price-Index scatters (only the second is saved). **Outputs:**
-`assets/reports/cluster_summary_papers.tsv`,
-`assets/reports/impact_vs_price_index.png`.
+`assets/<date>/05/cluster_summary_papers.tsv`,
+`assets/<date>/05/impact_vs_price_index.png`.
 
 ## Joint-UMAP analysis
 
@@ -74,16 +81,16 @@ Projects papers + teams together with a single 2D UMAP fit (cosine metric,
 points is then pulled back towards the edge of the cloud
 (`squash_radial_outliers`) so the canvas is used efficiently. Run first; re-run
 only when embeddings or topic models change. **Outputs:**
-`assets/reports/joint_umap_papers_xy.tsv`,
-`assets/reports/joint_umap_teams_xy.tsv`.
+`assets/<date>/05/joint_umap_papers_xy.tsv`,
+`assets/<date>/05/joint_umap_teams_xy.tsv`.
 
 ### `04-joint_umap.ipynb`
 
 Topic scatter maps on the shared canvas: papers (point size by citations) and
 teams, each at micro / meso / macro coloring × side / overlay labels, plus the
 papers-muted + teams-coloured overlay per level. **Outputs:**
-`assets/reports/umap_{papers,teams}_{level}_{style}.png`,
-`assets/reports/umap_overlay_{level}.png`.
+`assets/<date>/05/umap_{papers,teams}_{level}_{style}.png`,
+`assets/<date>/05/umap_overlay_{level}.png`.
 
 ### `06-density_comparison.ipynb`
 
@@ -94,7 +101,7 @@ Classifies topics into coverage zones and computes the **temporal precedence** o
 overlap-zone topics (see below). The first map labels the most teams-dense and
 papers-dense topics; the second labels the overlap topics with the most extreme
 `delta_q1_years`. **Outputs:**
-`assets/reports/umap_density_ratio.png`, `umap_density_ratio_extremes.png`,
+`assets/<date>/05/umap_density_ratio.png`, `umap_density_ratio_extremes.png`,
 `overlap_precedence_full.tsv`, `igem_preceded.tsv`, `literature_preceded.tsv`
 (the last two are consumed by `06-deliverables`).
 
@@ -109,7 +116,7 @@ share of the topic's peak year, with a per-row totals panel (D). Each view is
 produced for **two precedence criteria** — the first quartile (`delta_q1_years`)
 and the stricter earliest 5% (`delta_p5_years`, the leading edge of each corpus).
 **Outputs:**
-`assets/reports/overlap_precedence_{violin_horizontal,dumbbell_horizontal,diverging_gap,pixel_grid}.png`
+`assets/<date>/05/overlap_precedence_{violin_horizontal,dumbbell_horizontal,diverging_gap,pixel_grid}.png`
 (first quartile) and the matching `…_p5.png` files (earliest 5%).
 
 ## Supplementary analyses
@@ -119,11 +126,11 @@ and the stricter earliest 5% (`delta_p5_years`, the leading edge of each corpus)
 Runs five standalone scripts (in this folder) that back the supplementary
 figures and robustness checks. They re-use the persisted joint coordinates, so
 no UMAP / BERTopic re-run is needed, but `03-compute_coords` and
-`06-density_comparison` must have run first. The scripts do not import `aux/`;
-they re-implement the logic they need. Run the cells top to bottom: §3 and §4
-read the table written by §2.
+`06-density_comparison` must have run first (today or in an earlier run). The
+scripts do not import `aux/`; they re-implement the logic they need. Run the
+cells top to bottom: §3 and §4 read the table written by §2.
 
-| § | Script | What it answers | Outputs (`assets/reports/`) |
+| § | Script | What it answers | Outputs (`assets/<date>/05/`) |
 |---|---|---|---|
 | 1 | `density_eras.py` | Is the teams-vs-papers density split stable across eras (2004–2014 vs 2015–2025)? | `density_ratio_eras.png` |
 | 2 | `geography_lq.py` | Which countries are over-represented in iGEM relative to the literature (Location Quotient)? | `geography_location_quotient.tsv`, `geography_lq.png` |
@@ -159,19 +166,19 @@ outsiderness (`geography_outsiderness_teams.tsv` from `08-appendix` §4). It the
 
 Imported via `sys.path.insert(0, str(Path.cwd()))` then `from aux.<module> import …`.
 Used by notebooks `03`, `04`, `06`, `07`, and `09`; `01`, `02`, and the `08`
-scripts set up their own paths.
+scripts don't use it. Its I/O helpers (`load_plot_data`, `save_coords`,
+`save_precedence`, …) take the `RUN` handle as their first argument.
 
 | Module | Responsibility |
 |---|---|
-| `paths.py` | Paths, palette, seed, persisted-coordinate filenames |
+| `paths.py` | Palette, seed, persisted-coordinate filenames |
 | `coords.py` | Compute / persist / load the joint projection; build hierarchy-aware plot frames; shared limits; per-level colours and label anchors |
 | `labels.py` | Label placement: `add_side_labels`, `add_overlay_labels`, `add_density_labels` |
 | `scatter.py` | `plot_topic_map` (level × label style) and `plot_overlay` |
 | `density.py` | KDE density-ratio grid, heatmap rendering, zone classification, label selection |
 | `precedence.py` | `compute_precedence` / `save_precedence`, `gather_year_pools`, `gather_year_grid`, and the violin / dumbbell / diverging / pixel-grid charts |
 
-Paths in `paths.py` resolve from the module's own location, so the notebooks
-work regardless of the kernel's working directory.
+File locations come from the `RUN` handle, not from `paths.py`.
 
 ## Temporal precedence explanation
 

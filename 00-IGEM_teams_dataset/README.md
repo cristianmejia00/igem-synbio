@@ -16,7 +16,8 @@ locations before running.
 ## Description
 
 The notebook **`read_igem_data.ipynb`** prepares the iGEM competition
-dataset for downstream analysis.
+dataset for downstream analysis. All its outputs go to today's run folder,
+`assets/<date>/00/` (see *Where results live* in the root README).
 
 1. **Load raw data** — reads the two TSV files containing team metadata
    and project descriptions.
@@ -37,10 +38,10 @@ dataset for downstream analysis.
    countries, institutions, tracks, and topics, and teams per section;
    line charts of the top-6 countries over time (raw counts and share of
    each year's teams, with Japan always included).
-8. **Stats report** — writes `stats_report.md` in this folder, with its
-   figures in `figures/` (`yearly_trend.png`, `country_top20.png`,
+8. **Stats report** — writes `stats_report.md`, with its figures in
+   `figures/` (`yearly_trend.png`, `country_top20.png`,
    `country_trend_raw.png`, `country_trend_norm.png`, `tracks_top20.png`).
-9. **Export** — saves the cleaned dataset to `assets/igem.txt` (TSV).
+9. **Export** — saves the cleaned dataset as `igem.txt` (TSV).
 
 ## Other files
 
@@ -48,4 +49,4 @@ dataset for downstream analysis.
   `AwardTitle`, `AwardType`, `AwardSubType`, `AwardDecision`, `AwardGroup`,
   `AwardIcon`). It is **not** produced by the notebook; it is an external
   input read by `05-reporting/09-awards.ipynb` (`TeamID` matches `UT`).
-- `stats_report.docx` — a Word export of the stats report.
+- `stats_report.docx` — a Word export of an earlier version of the stats report.

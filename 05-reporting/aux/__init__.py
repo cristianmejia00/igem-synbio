@@ -13,7 +13,8 @@ do not use this package.
 
 Modules
 -------
-paths       : filesystem paths, palette, seed, persisted-coordinate filenames
+paths       : palette, seed, persisted-coordinate filenames (data locations come
+              from the run folder returned by ``setup_run.setup()``)
 coords      : compute / persist / load the joint projection; build plot frames
 labels      : label placement strategies (side, overlay, density)
 scatter     : topic scatter maps and the papers+teams overlay

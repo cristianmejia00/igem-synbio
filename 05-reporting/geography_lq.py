@@ -16,19 +16,23 @@ A crosswalk maps the former onto the latter. Counting matches the published
 top-20 figures: one count per team-country, and one count per distinct country
 listed on a paper (multi-country papers contribute to each).
 
-Inputs : assets/igem.txt, assets/synbio_openalex.txt
-Outputs: assets/reports/geography_location_quotient.tsv
-         assets/reports/geography_lq.png
+Inputs : assets/<date>/00/igem.txt, assets/<date>/01/synbio_openalex.txt
+Outputs: assets/<date>/05/geography_location_quotient.tsv
+         assets/<date>/05/geography_lq.png
 """
 import csv
 from collections import Counter
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-ASSETS = Path(__file__).resolve().parents[1] / "assets"
-REPORTS = ASSETS / "reports"
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # 05-reporting, for setup_run
+from setup_run import setup  # noqa: E402
+
+# Today's run folder (assets/<date>/05/); set by setup() when run as a script.
+RUN = None
 OVERLAP = (2004, 2025)          # iGEM co-existence window
 MIN_TEAMS = 10                  # display threshold for the figure / headline table
 
@@ -66,7 +70,7 @@ def _year(row, col):
 def count_igem(window=None):
     """Teams per ISO-3166 alpha-3 code (one per team-country)."""
     c = Counter()
-    with open(ASSETS / "igem.txt") as f:
+    with open(RUN.get("00", "igem.txt")) as f:
         for row in csv.DictReader(f, delimiter="\t"):
             if window:
                 y = _year(row, "Year_y")
@@ -82,7 +86,7 @@ def count_igem(window=None):
 def count_papers(window=None):
     """Papers per English country name (one per distinct country on the paper)."""
     c = Counter()
-    with open(ASSETS / "synbio_openalex.txt") as f:
+    with open(RUN.get("01", "synbio_openalex.txt")) as f:
         for row in csv.DictReader(f, delimiter="\t"):
             if window:
                 y = _year(row, "publication_year")
@@ -169,10 +173,10 @@ def plot_lq(rows, path, min_teams=MIN_TEAMS):
 
 
 if __name__ == "__main__":
+    RUN = setup()
     rows, tot = build_table()
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    save_tsv(rows, REPORTS / "geography_location_quotient.tsv")
-    plot_lq(rows, REPORTS / "geography_lq.png")
+    save_tsv(rows, RUN.out("geography_location_quotient.tsv"))
+    plot_lq(rows, RUN.out("geography_lq.png"))
 
     print(f"\nTotals — iGEM team-countries: {tot['ig_tot']:,} | "
           f"paper-countries 2004-25: {tot['pov_tot']:,} | all-years: {tot['pall_tot']:,}\n")

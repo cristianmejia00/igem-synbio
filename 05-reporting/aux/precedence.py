@@ -15,7 +15,6 @@ from matplotlib.lines import Line2D
 from scipy.spatial import cKDTree
 
 from .density import classify_zone
-from .paths import REPORTS_DIR
 
 _STATS = ("min", "p5", "q1", "mean", "median", "q3", "max")
 
@@ -108,14 +107,13 @@ def compute_precedence(df_papers, df_teams, ratio_interp, min_nearby=3, radius_m
     return df_prec, papers_ctr, teams_ctr
 
 
-def save_precedence(df_prec, reports_dir=REPORTS_DIR):
-    """Write the full table plus the iGEM-first / literature-first splits."""
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    df_prec.to_csv(reports_dir / "overlap_precedence_full.tsv", sep="\t", index=False)
+def save_precedence(run, df_prec):
+    """Write the full table plus the iGEM-first / literature-first splits (run folder)."""
+    df_prec.to_csv(run.out("overlap_precedence_full.tsv"), sep="\t", index=False)
     igem = df_prec[df_prec["delta_mean_years"] < 0].copy()
     lit = df_prec[df_prec["delta_mean_years"] > 0].copy()
-    igem.to_csv(reports_dir / "igem_preceded.tsv", sep="\t", index=False)
-    lit.to_csv(reports_dir / "literature_preceded.tsv", sep="\t", index=False)
+    igem.to_csv(run.out("igem_preceded.tsv"), sep="\t", index=False)
+    lit.to_csv(run.out("literature_preceded.tsv"), sep="\t", index=False)
     return igem, lit
 
 

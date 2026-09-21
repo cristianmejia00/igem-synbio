@@ -5,16 +5,16 @@ from bertopic import BERTopic
 from hdbscan import HDBSCAN
 from umap import UMAP
 
-from .paths import EMBEDDINGS_DIR, MODELS_DIR, SEED
+from .paths import SEED
 
 
-def load_corpus(embeddings_file: str, corpus_file: str):
-    """Load a saved embedding matrix and its aligned corpus table.
+def load_corpus(run, embeddings_file: str, corpus_file: str):
+    """Load a saved embedding matrix and its aligned corpus table (stage 02 files).
 
     Returns ``(embeddings, corpus_df)``; the row counts are asserted to match.
     """
-    embeddings = np.load(EMBEDDINGS_DIR / embeddings_file)
-    corpus = pd.read_csv(EMBEDDINGS_DIR / corpus_file, sep="\t")
+    embeddings = np.load(run.get("02", embeddings_file))
+    corpus = pd.read_csv(run.get("02", corpus_file), sep="\t")
     assert len(corpus) == embeddings.shape[0], "corpus / embeddings length mismatch"
     return embeddings, corpus
 
@@ -62,27 +62,24 @@ def fit_topic_model(
 
 
 def save_topic_outputs(
+    run,
     topic_model: BERTopic,
     corpus: pd.DataFrame,
     topics: list[int],
     id_col: str,
     prefix: str,
-    models_dir=MODELS_DIR,
 ) -> pd.DataFrame:
     """Persist the model, its topic-info table, and document-level assignments.
 
     Writes ``<prefix>_topic_model``, ``<prefix>_topic_info.txt`` and
-    ``<prefix>_doc_topics.txt`` into ``models_dir``.  Returns the topic-info table.
+    ``<prefix>_doc_topics.txt`` into the run folder.  Returns the topic-info table.
     """
-    models_dir.mkdir(parents=True, exist_ok=True)
-    topic_model.save(str(models_dir / f"{prefix}_topic_model"))
+    topic_model.save(str(run.out(f"{prefix}_topic_model")))
 
     info = topic_model.get_topic_info()
-    info.to_csv(models_dir / f"{prefix}_topic_info.txt", sep="\t", index=False)
+    info.to_csv(run.out(f"{prefix}_topic_info.txt"), sep="\t", index=False)
 
     out = corpus.copy()
     out["topic"] = topics
-    out[[id_col, "topic"]].to_csv(
-        models_dir / f"{prefix}_doc_topics.txt", sep="\t", index=False
-    )
+    out[[id_col, "topic"]].to_csv(run.out(f"{prefix}_doc_topics.txt"), sep="\t", index=False)
     return info

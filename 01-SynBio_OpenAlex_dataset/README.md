@@ -12,7 +12,8 @@ country-code table from GitHub, so it needs internet access.
 
 This folder contains two notebooks and a configuration file that
 together download, merge, and describe the academic-literature dataset
-used throughout the project.
+used throughout the project. All outputs go to today's run folder,
+`assets/<date>/01/` (see *Where results live* in the root README).
 
 ### `query.yaml`
 
@@ -49,13 +50,15 @@ BioBrick terms) has no NOT clause.
    split into `source_id` / `source_name`; concepts with a score ≥ 0.3
    are kept. Country codes are mapped to full names using the ISO-3166
    standard. Duplicate IDs within a part are dropped.
-5. **Save** — writes one TSV file per query part to
-   `assets/openalex_data/synbio_openalex_PART_<n>.txt`.
+5. **Save** — writes one TSV file per query part,
+   `synbio_openalex_PART_<n>.txt`.
 
 ### `merge_and_describe.ipynb`
 
 1. **Merge** — reads all `synbio_openalex_PART_*.txt` files and
-   concatenates them into a single DataFrame.
+   concatenates them into a single DataFrame. If today's run has no PART files
+   (no download today), all of them are copied in from the single newest
+   earlier run that has them.
 2. **Deduplicate** — removes articles that appear in more than one query
    part (by OpenAlex `id`).
 3. **Filter** — keeps only English articles (`language == "en"`), drops
@@ -63,20 +66,20 @@ BioBrick terms) has no NOT clause.
    2004** so the corpus covers the same period as iGEM.
 4. **Handle missing values** — fills blanks with empty strings (text
    columns) or zeros (numeric columns).
-5. **Export** — saves the merged dataset to `assets/synbio_openalex.txt`.
+5. **Export** — saves the merged dataset as `synbio_openalex.txt`.
 6. **Summary statistics** — prints dataset dimensions, coverage of key
    fields, and citation statistics.
 7. **Visualisations** — bar charts of articles per year and the top-20
    countries, institutions, and concepts; line charts of the top-6
    countries over time (raw counts and share of each year's papers),
    using the same country colours as the iGEM charts.
-8. **Stats report** — writes `stats_report.md` in this folder, with its
-   figures in `figures/` (`yearly_trend.png`, `country_top20.png`,
+8. **Stats report** — writes `stats_report.md`, with its figures in
+   `figures/` (`yearly_trend.png`, `country_top20.png`,
    `country_trend_raw.png`, `country_trend_norm.png`,
-   `concepts_top20.png`). `figures/figures_20260520/` is an earlier
-   snapshot.
+   `concepts_top20.png`). `figures/figures_20260520/` in this folder is an
+   earlier hand-made snapshot.
 
-> **Known mismatch.** The part files currently in `assets/openalex_data/`
+> **Known mismatch.** The part files currently in `assets/2026-03-22/01/`
 > also contain a `referenced_works` column, written by an earlier version
 > of `get_synbio_data.ipynb`. The current version no longer requests that
 > field, but the field-coverage cell in `merge_and_describe.ipynb` still
