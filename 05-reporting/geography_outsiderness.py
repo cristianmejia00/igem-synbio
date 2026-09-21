@@ -3,12 +3,13 @@
 The `geography_lead_orientation.png` scatter cannot simply be extended over time.
 Two mechanical constraints block the obvious approaches:
 
-1. `delta_q1_years = teams_q1_year - papers_q1_year` is *defined by* team timing,
-   so an early team can only sit near topics that are iGEM-led. Pooled across all
-   countries, mean orientation drifts -2.9 -> +0.1 with country labels destroyed.
+1. `delta_q1_years = teams_q1_year - papers_q1_year` depends on when the teams
+   worked: early teams pull a topic's first-quartile team year early, so they tend
+   to sit near topics classed as iGEM-led. A time series of orientation would
+   largely reflect that construction rather than the countries.
 2. The Location Quotient is compositional: the paper-share-weighted mean of LQ is
-   pinned to 1.0 in every window. A global decline in outsiderness is therefore
-   unobservable in LQ space -- only redistribution between countries.
+   1 by construction in every window, so a worldwide change in outsiderness cannot
+   appear in LQ -- only redistribution between countries can.
 
 This script measures outsiderness with a spatial field instead, so neither
 constraint applies: team years never enter the field's construction and nothing
@@ -24,16 +25,11 @@ to the literature's own distribution rather than to arbitrary KDE units.
 Two literature fields are computed, and the choice matters:
 
 *   ``contemp`` (PRIMARY) -- the KDE is built from papers published **up to and
-    including the team's own year**. It asks the honest question: at the time the
-    team worked, had the literature arrived there yet?
-*   ``fixed`` (DIAGNOSTIC) -- the KDE pools all papers 2004-2025. This is the
-    naive choice and it is **biased**: a team that pioneered a region the
-    literature only reached years later is scored against that future literature
-    and therefore looks like an insider. The bias inflates early-cohort centrality
-    and manufactures a spurious upward trend in outsiderness. The two fields
-    correlate at r ~= 0.90 cross-sectionally yet disagree completely on the time
-    trend, which is exactly the signature of the artefact. `field_check` plots
-    both; the fixed field is reported only to show why it must not be used.
+    including the team's own year**: at the time the team worked, how much of the
+    literature of the day was denser than the team's location?
+*   ``fixed`` (DIAGNOSTIC) -- the KDE pools the papers of every year, so a team is
+    also scored against literature published after it worked. `field_check` plots
+    the yearly mean of both scores so the two fields can be compared.
 
 A third score, ``ratio`` = log2(teams density / papers density) at the team's
 location, reproduces the repo's established density-ratio construct
@@ -82,11 +78,10 @@ MIN_WINDOWS = 8         # minimum window points for a country to be plotted
 RED, BLUE = "#b2182b", "#2166ac"   # outsider-tilted / core-tilted, as in geography_lq.png
 INK = "#1a1a1a"
 
-# 19 lines cannot be told apart by hue, so the thin lines carry only the spread and
-# just four are direct-labelled. They are the four largest team communities, not the
-# steepest slopes: the extreme slopes (Brazil, India) belong to the smallest samples
-# and would draw the eye to noise. Their uncertainty is visible in the right panel.
-HIGHLIGHT = ["CHN", "USA", "CAN", "DEU"]
+# Many country lines cannot be told apart by hue, so only the N_HIGHLIGHT plotted
+# countries with the most teams are drawn bold and labelled (chosen from the data at
+# run time); the others are thin lines. Every country's slope is in the right panel.
+N_HIGHLIGHT = 4
 
 
 # ── data ──────────────────────────────────────────────────────────────────────
@@ -215,7 +210,7 @@ def country_slopes(ex, isos, col="contemp"):
 
 
 # ── figures ───────────────────────────────────────────────────────────────────
-def plot_trajectories(traj, slopes, lq, gseries, gslope, path):
+def plot_trajectories(traj, slopes, lq, gseries, gslope, path, highlight):
     side = dict(zip(lq["iso3"], lq["log2_lq_overlap"]))
     col = lambda iso: RED if side.get(iso, 0) > 0 else BLUE
 
@@ -230,12 +225,12 @@ def plot_trajectories(traj, slopes, lq, gseries, gslope, path):
                      alpha=0.16, lw=0, zorder=1)
 
     for iso, g in traj.groupby("iso3"):
-        if iso in HIGHLIGHT:
+        if iso in highlight:
             continue
         g = g.sort_values("year")
         ax1.plot(g["year"], g["outsiderness"], color=col(iso), lw=1.0, alpha=0.22, zorder=2)
 
-    for iso in HIGHLIGHT:
+    for iso in highlight:
         g = traj[traj["iso3"] == iso].sort_values("year")
         if g.empty:
             continue
@@ -302,15 +297,14 @@ def plot_field_check(g_contemp, g_fixed, sl_contemp, sl_fixed, path):
     ax.plot(g_contemp["year"], g_contemp["value"], color=INK, lw=2.6,
             marker="o", ms=4, mew=0, label="contemporaneous field (papers ≤ team year)")
     ax.plot(g_fixed["year"], g_fixed["value"], color=RED, lw=2.2, ls="--",
-            marker="s", ms=4, mew=0, label="fixed all-years field (biased)")
+            marker="s", ms=4, mew=0, label="all-years field (papers of every year)")
     for s, y, c in [(sl_contemp, 0.055, INK), (sl_fixed, 0.012, RED)]:
         ax.text(0.985, y, f"slope {s[0]:+.5f}/yr   ({abs(s[0]) / s[1]:.1f}σ)",
                 transform=ax.transAxes, ha="right", fontsize=9, color=c)
     ax.set_xlabel("Year   (3-year rolling window, centred)")
     ax.set_ylabel("Mean outsiderness, all teams")
-    ax.set_title("Why the literature field must be contemporaneous\n"
-                 "Pooling all years scores early pioneers against literature that did not yet exist,\n"
-                 "manufacturing a spurious rise in outsiderness", fontsize=11)
+    ax.set_title("Mean outsiderness of all teams:\n"
+                 "contemporaneous vs all-years literature field", fontsize=11)
     ax.legend(loc="center left", bbox_to_anchor=(0.02, 0.56), fontsize=9, frameon=False)
     ax.grid(alpha=0.18)
     ax.xaxis.set_major_locator(MultipleLocator(2))
@@ -347,7 +341,7 @@ def main():
     print(f"\nGLOBAL trend, contemporaneous : {gb:+.5f}/yr  (SE {gse:.5f}, "
           f"{abs(gb)/gse:.1f}σ, R²={gr2:.4f})   total over {span} yr: {gb*span:+.3f}")
     print(f"GLOBAL trend, fixed all-years: {fb:+.5f}/yr  (SE {fse:.5f}, "
-          f"{abs(fb)/fse:.1f}σ)   total over {span} yr: {fb*span:+.3f}  ← artefact")
+          f"{abs(fb)/fse:.1f}σ)   total over {span} yr: {fb*span:+.3f}")
 
     years = np.arange(ok["year"].min() + HALF, ok["year"].max() - HALF + 1)
     g_contemp = rolling_mean(ok, years, "contemp")
@@ -386,8 +380,9 @@ def main():
     lq = pd.read_csv(RUN.get("05", "geography_location_quotient.tsv"), sep="\t")
     lq["log2_lq_overlap"] = pd.to_numeric(lq["log2_lq_overlap"], errors="coerce")
 
+    highlight = totals.reindex(keep).sort_values(ascending=False).index[:N_HIGHLIGHT].tolist()
     plot_trajectories(traj, slopes, lq, g_contemp, (gb, gse),
-                      RUN.out("geography_outsiderness_trajectory.png"))
+                      RUN.out("geography_outsiderness_trajectory.png"), highlight)
     plot_field_check(g_contemp, g_fixed, (gb, gse), (fb, fse),
                      RUN.out("geography_outsiderness_field_check.png"))
     print(f"Saved → {RUN.out('geography_outsiderness_trajectory.tsv')}")

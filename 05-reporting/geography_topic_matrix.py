@@ -1,7 +1,7 @@
 """Country x overlap-topic participation matrix.
 
 Ties the geography result (Location Quotient) to the precedence result. For each
-of the 68 overlap topics — the columns of the diverging precedence chart, ordered
+of the overlap topics — the columns of the diverging precedence chart, ordered
 by ``delta_q1`` (iGEM-led on the left, literature-led on the right) — we take the
 SAME nearby team projects that defined its precedence and break them down by
 country. The rows are the countries of the LQ chart (>=10 teams), ordered by

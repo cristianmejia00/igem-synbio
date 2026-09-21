@@ -174,13 +174,13 @@ def main():
                label="Q1/median/mean agree in sign")
     ax.scatter(base.loc[~ok, "delta_q1_years"], base.loc[~ok, "delta_mean_years"],
                s=size[~ok.values], c="#d4731c", alpha=0.85, edgecolor="white", linewidth=0.4,
-               label="disagree (near zero)")
+               label="Q1/median/mean disagree in sign")
     lim = max(base["delta_q1_years"].abs().max(), base["delta_mean_years"].abs().max()) * 1.08
     ax.plot([-lim, lim], [-lim, lim], ls=":", color="0.5", lw=1)
     ax.set_xlim(-lim, lim); ax.set_ylim(-lim, lim)
     ax.set_xlabel("Precedence gap, Q1  (teams − papers, years)")
     ax.set_ylabel("Precedence gap, mean  (teams − papers, years)")
-    ax.set_title("Precedence is sign-stable across year statistics\n(marker size ∝ support)", fontsize=12)
+    ax.set_title("Precedence gap: first quartile vs mean\n(marker size ∝ support)", fontsize=12)
     ax.text(-lim*0.96, -lim*0.9, "iGEM-first quadrant", color="#b2182b", fontsize=9)
     ax.text(lim*0.96, lim*0.92, "papers-first quadrant", color="#2166ac", fontsize=9, ha="right")
     ax.legend(loc="upper left", fontsize=8, framealpha=0.9)

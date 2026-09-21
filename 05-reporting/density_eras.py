@@ -1,8 +1,8 @@
 """R2 — temporal stability of the spatial division of labour.
 
 The headline density-ratio map pools all years. A reviewer may ask whether the
-red (teams-dense) / blue (papers-dense) division is merely an artefact of the
-recent volume bulge. We answer by recomputing the *same* self-normalised
+red (teams-dense) / blue (papers-dense) division holds in both halves of the iGEM
+period. We check by recomputing the *same* self-normalised
 ``log2(teams_density / papers_density)`` map separately for two eras of the iGEM
 period — 2004-2014 and 2015-2025 — on one shared grid, and quantifying how
 similar the two maps are (grid-cell correlation and per-topic zone agreement).
@@ -121,8 +121,8 @@ def main():
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm); sm.set_array([])
     cbar = fig.colorbar(sm, ax=axes, orientation="horizontal", fraction=0.045, pad=0.04)
     cbar.set_label("log2(teams density / papers density)")
-    fig.suptitle(f"Spatial division of labour is stable across eras "
-                 f"(grid r = {r_dense:.2f}, zone agreement = {100*agree:.0f}%)", fontsize=13)
+    fig.suptitle(f"Density ratio by era "
+                 f"(grid-cell r = {r_dense:.2f}, per-topic zone agreement = {100*agree:.0f}%)", fontsize=13)
     fig.savefig(RUN.out("density_ratio_eras.png"), dpi=180, bbox_inches="tight")
     print(f"\nSaved → {RUN.out('density_ratio_eras.png')}")
 
