@@ -6,9 +6,11 @@ AI-generated names to the mid and high groups.
 
 ## Setup
 
-Install the project-level dependencies (`requirements.txt`). The naming
-notebooks also require an OpenAI API key stored at `03-topic_names/openai.key`
-(read from there directly).
+Install the project-level dependencies (`requirements.txt`). The hierarchy
+notebooks load the fitted BERTopic model saved by `02-topic_model`
+(`assets/topic_models/<prefix>_topic_model`), so that file must exist. The
+naming notebooks also require an OpenAI API key stored at
+`03-topic_names/openai.key` (read from there directly).
 
 ## Layout
 
@@ -26,7 +28,9 @@ naming calls for) the other.
 
 Each of `01-teams/` and `02-papers/` contains the same two notebooks, differing
 only in a small CONFIG block at the top (`PREFIX`, `ID_COL`, `YEAR_COL`,
-`RAW_FILE`):
+`RAW_FILE`, `RENAME_ID_FROM` in `get_topic_hierarchy.ipynb`; only `PREFIX` in
+`name_hierarchy_levels.ipynb`). For papers the OpenAlex `id` column is renamed to
+`ID`; teams use `UT` and the `Year_y` year column:
 
 | Notebook | Purpose |
 |---|---|

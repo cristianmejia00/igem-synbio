@@ -1,12 +1,15 @@
 """Shared helpers for the joint-UMAP / density / precedence reporting notebooks.
 
-The notebook ``reporting_enhanced.ipynb`` was split into focused units that all
-share **one** joint UMAP projection:
+These notebooks all share **one** joint UMAP projection:
 
-    compute_coords.ipynb     -> projects papers+teams together once, persists x,y
-    joint_umap.ipynb         -> topic scatter maps (micro/meso/macro × side/overlay)
-    density_comparison.ipynb -> KDE density-ratio map + precedence computation
-    precedence_charts.ipynb  -> violin / dumbbell / diverging precedence charts
+    03-compute_coords.ipynb     -> projects papers+teams together once, persists x,y
+    04-joint_umap.ipynb         -> topic scatter maps (micro/meso/macro × side/overlay)
+    06-density_comparison.ipynb -> KDE density-ratio map + precedence computation
+    07-precedence_charts.ipynb  -> violin / dumbbell / diverging / pixel-grid charts
+    09-awards.ipynb             -> village awards vs precedence clusters and outsiderness
+
+The cluster-summary notebooks (01, 02) and the scripts run by 08-appendix.ipynb
+do not use this package.
 
 Modules
 -------

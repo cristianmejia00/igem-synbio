@@ -32,7 +32,7 @@ hyperparameter grid):
 |---|---|
 | `get_embeddings.ipynb` | Concatenate title + abstract, clean, and encode with `all-MiniLM-L6-v2` → `assets/embeddings/` |
 | `get_topics.ipynb` | Fit a single BERTopic model (UMAP → HDBSCAN) with manual hyperparameters → `assets/topic_models/` |
-| `get_topics_with_evaluation.ipynb` | **Recommended.** Grid-search UMAP/HDBSCAN parameters, score each by C_v coherence / diversity / DBCV, pick the best → `assets/topic_models/` |
+| `get_topics_with_evaluation.ipynb` | **Recommended.** Grid-search UMAP/HDBSCAN parameters, score each by C_v coherence / diversity / DBCV, pick the best → `assets/topic_models/` (plus `<prefix>_grid_search.txt` with every configuration's scores) |
 
 `03-combined/` holds the cross-corpus analysis:
 
@@ -90,6 +90,11 @@ number of UMAP neighbours/components. Each configuration is scored with:
 - **DBCV** — HDBSCAN's density-based cluster-validity score.
 
 The best configuration is selected by C_v coherence (ties broken by diversity).
+The model, topic info, and document assignments of the best configuration are
+saved as in `get_topics.ipynb` (`<prefix>_topic_model`, `<prefix>_topic_info.txt`,
+`<prefix>_doc_topics.txt`), and the full score table is written to
+`<prefix>_grid_search.txt`. The saved `<prefix>_topic_model` is required later
+by `04-topic_hierarchy`.
 
 **Outlier reduction (`REDUCE_OUTLIERS`).** HDBSCAN labels documents outside any
 dense cluster as topic −1 (noise). This is acceptable for the SynBio

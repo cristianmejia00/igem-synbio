@@ -74,11 +74,14 @@ notebooks work regardless of the kernel's working directory, and `prompts.yaml`
 
 1. **Load data** — topic info, document-level topic assignments, and the corpus
    text (merged on the corpus ID column).
-2. **Select representative documents** — for each non-outlier cluster, take the
-   top `TOP_N_DOCS` documents and concatenate their texts (truncated to stay
-   within the context limit).
-3. **Generate** — three LLM rounds per cluster: a raw description, an enhanced
-   synthesis, then a short name.
+2. **Select sample documents** — for each non-outlier cluster, take the first
+   `TOP_N_DOCS` (5) documents assigned to it, in corpus file order (they are
+   not ranked by representativeness or topic probability), join their texts
+   with `#####` separators, and truncate to 14,000 characters to stay within
+   the context limit.
+3. **Generate** — three LLM rounds per cluster (model `OPENAI_MODEL`,
+   `gpt-4.1-nano` by default): a raw description, an enhanced synthesis, then a
+   short name distilled from the raw description.
 4. **Save** — `<prefix>_topic_names.txt` with columns `topic`, `name`,
    `description`, `raw_description`.
 
@@ -86,6 +89,7 @@ notebooks work regardless of the kernel's working directory, and `prompts.yaml`
 
 Per-cluster names are produced in isolation and can collide. This pass sends
 *all* topics to the LLM in a single call and uses **OpenAI function calling** to
-enforce a structured response — one unique name per topic. It validates that
-every topic received a name and that no two names are identical, then overwrites
+enforce a structured response — one unique name per topic. It checks that
+every topic received a name and that no two names are identical, printing a
+warning (not raising an error) if either check fails, then overwrites
 `<prefix>_topic_names.txt`, adding a `global_name` column.
