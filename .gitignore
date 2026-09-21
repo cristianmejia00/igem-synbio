@@ -45,5 +45,5 @@ ENV/
 assets/
 assets_copy/
 
-# ---------- Others ----------
-07-manuscript/
+# ---------- Archive (retired material) ----------
+/archive/
