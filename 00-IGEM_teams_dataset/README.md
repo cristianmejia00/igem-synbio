@@ -49,4 +49,3 @@ dataset for downstream analysis. All its outputs go to today's run folder,
   `AwardTitle`, `AwardType`, `AwardSubType`, `AwardDecision`, `AwardGroup`,
   `AwardIcon`). It is **not** produced by the notebook; it is an external
   input read by `05-reporting/09-awards.ipynb` (`TeamID` matches `UT`).
-- `stats_report.docx` — a Word export of an earlier version of the stats report.
